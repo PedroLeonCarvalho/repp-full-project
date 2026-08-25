@@ -55,5 +55,13 @@ export const MUSIC_GENRES = [
   "OTHER",
 ] as const;
 
+export const PAYMENT_STATUSES = [
+  "PENDING",
+  "PARTIALLY_PAID",
+  "PAID",
+  "CANCELLED",
+] as const;
+
 export const musicalKeyEnum = pgEnum("musical_key", MUSICAL_KEYS);
 export const musicGenreEnum = pgEnum("music_genre", MUSIC_GENRES);
+export const paymentStatusEnum = pgEnum("payment_status", PAYMENT_STATUSES);

@@ -1,6 +1,10 @@
-import { MusicView } from "@/features/music/components/music-view";
+import { getAuthenticatedCustomer } from "@/features/auth/services/auth-service";
+import { logoutAction } from "@/features/auth/actions/auth-actions";
+import { MainDashboard } from "@/components/main-dashboard";
 
-export default function Home() {
+export default async function Home() {
+  const customer = await getAuthenticatedCustomer();
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-emerald-500 selection:text-zinc-950">
       {/* Top Navigation / Brand */}
@@ -14,17 +18,28 @@ export default function Home() {
               REPP
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="rounded-full bg-zinc-900 border border-zinc-800 px-3 py-1 text-[11px] font-medium text-zinc-400">
-              Repertório
-            </span>
+
+          <div className="flex items-center gap-3">
+            {customer && (
+              <span className="text-xs text-zinc-300 font-medium hidden sm:inline">
+                Olá, <strong className="text-emerald-400">{customer.stageName}</strong>
+              </span>
+            )}
+            <form action={logoutAction}>
+              <button
+                type="submit"
+                className="rounded-xl bg-zinc-900 border border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                Sair
+              </button>
+            </form>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* Main Content with Tabs */}
       <main className="pb-16">
-        <MusicView />
+        <MainDashboard />
       </main>
     </div>
   );

@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import type { Music } from "../types";
 import { GENRE_LABELS } from "./music-filters";
+import { LyricsViewer } from "@/features/concert/components/lyrics-viewer";
+import { ConcertPresentationMode } from "@/features/concert/components/concert-presentation-mode";
 
 interface MusicDetailProps {
   music: Music;
@@ -16,6 +19,28 @@ export function MusicDetail({
   onEdit,
   onDelete,
 }: MusicDetailProps) {
+  const [isStageMode, setIsStageMode] = useState(false);
+
+  if (isStageMode) {
+    return (
+      <ConcertPresentationMode
+        setlist={[
+          {
+            id: music.id,
+            concertId: "standalone",
+            musicId: music.id,
+            position: 1,
+            note: music.note,
+            createdAt: new Date(),
+            music,
+          },
+        ]}
+        concertTitle="Repertório"
+        onClose={() => setIsStageMode(false)}
+      />
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 overflow-y-auto">
       <div className="relative w-full max-w-2xl rounded-3xl bg-zinc-900 border border-zinc-800 p-6 text-zinc-100 shadow-2xl my-8 max-h-[92vh] flex flex-col">
@@ -36,26 +61,38 @@ export function MusicDetail({
               {music.artist}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full p-2 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 transition-colors"
-            aria-label="Fechar"
-          >
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+          <div className="flex items-center gap-2">
+            {music.lyrics && (
+              <button
+                type="button"
+                onClick={() => setIsStageMode(true)}
+                className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-3 py-1.5 text-xs font-bold text-emerald-300 hover:bg-emerald-500/25 transition-all active:scale-95 cursor-pointer"
+                title="Abrir em tela cheia otimizada para leitura"
+              >
+                ⛶ Tela Cheia
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full p-2 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 transition-colors cursor-pointer"
+              aria-label="Fechar"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Content Scrollable */}
@@ -111,7 +148,7 @@ export function MusicDetail({
           )}
 
           {/* Lyrics / Chords Box with Note at top header */}
-          <div className="rounded-2xl bg-zinc-950 p-4 border border-zinc-800/80 shadow-inner">
+          <div className="rounded-2xl bg-zinc-950 p-4 sm:p-5 border border-zinc-800/80 shadow-inner">
             <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2.5 mb-3">
               <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
                 Letra & Cifra
@@ -135,10 +172,9 @@ export function MusicDetail({
               </div>
             )}
 
+            {/* Structured Lyrics with Paragraph recognition */}
             {music.lyrics ? (
-              <pre className="w-full whitespace-pre-wrap font-mono text-sm leading-relaxed text-zinc-100">
-                {music.lyrics}
-              </pre>
+              <LyricsViewer lyrics={music.lyrics} fontSize="normal" />
             ) : (
               <p className="text-xs text-zinc-500 italic py-4">
                 Nenhuma letra cadastrada para esta música.
@@ -152,7 +188,7 @@ export function MusicDetail({
           <button
             type="button"
             onClick={() => onDelete(music.id)}
-            className="rounded-xl px-3.5 py-2 text-xs font-medium text-red-400 hover:bg-red-950/40 hover:text-red-300 transition-colors"
+            className="rounded-xl px-3.5 py-2 text-xs font-medium text-red-400 hover:bg-red-950/40 hover:text-red-300 transition-colors cursor-pointer"
           >
             Excluir
           </button>
@@ -160,14 +196,14 @@ export function MusicDetail({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl px-4 py-2 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
+              className="rounded-xl px-4 py-2 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
             >
               Fechar
             </button>
             <button
               type="button"
               onClick={() => onEdit(music)}
-              className="rounded-xl bg-zinc-800 px-4 py-2 text-xs font-medium text-zinc-100 hover:bg-zinc-700 transition-colors"
+              className="rounded-xl bg-zinc-800 px-4 py-2 text-xs font-medium text-zinc-100 hover:bg-zinc-700 transition-colors cursor-pointer"
             >
               Editar
             </button>

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requireAuthCustomerId } from "@/features/auth/services/auth-service";
 import {
   createMusic,
   deleteMusic,
@@ -21,10 +22,10 @@ export type ActionResult<T> =
   | { success: false; error: string };
 
 export async function createMusicAction(
-  input: CreateMusicInput,
-  customerId: string
+  input: CreateMusicInput
 ): Promise<ActionResult<Music>> {
   try {
+    const customerId = await requireAuthCustomerId();
     const created = await createMusic(input, customerId);
     revalidatePath("/");
     return { success: true, data: created };
@@ -41,10 +42,10 @@ export async function createMusicAction(
 
 export async function updateMusicAction(
   id: string,
-  input: Omit<UpdateMusicInput, "id">,
-  customerId: string
+  input: Omit<UpdateMusicInput, "id">
 ): Promise<ActionResult<Music>> {
   try {
+    const customerId = await requireAuthCustomerId();
     const updated = await updateMusic(id, input, customerId);
     revalidatePath("/");
     return { success: true, data: updated };
@@ -60,10 +61,10 @@ export async function updateMusicAction(
 }
 
 export async function deleteMusicAction(
-  id: string,
-  customerId: string
+  id: string
 ): Promise<ActionResult<{ success: true }>> {
   try {
+    const customerId = await requireAuthCustomerId();
     const result = await deleteMusic(id, customerId);
     revalidatePath("/");
     return { success: true, data: result };
@@ -79,10 +80,10 @@ export async function deleteMusicAction(
 }
 
 export async function listMusicsAction(
-  customerId: string,
   filters?: MusicFilter
 ): Promise<ActionResult<Music[]>> {
   try {
+    const customerId = await requireAuthCustomerId();
     const items = await listMusics(customerId, filters);
     return { success: true, data: items };
   } catch (err) {
@@ -94,10 +95,10 @@ export async function listMusicsAction(
 }
 
 export async function getMusicByIdAction(
-  id: string,
-  customerId: string
+  id: string
 ): Promise<ActionResult<Music | null>> {
   try {
+    const customerId = await requireAuthCustomerId();
     const item = await getMusicById(id, customerId);
     return { success: true, data: item };
   } catch (err) {

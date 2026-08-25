@@ -13,12 +13,7 @@ import { MusicList } from "./music-list";
 import { MusicForm } from "./music-form";
 import { MusicDetail } from "./music-detail";
 
-interface MusicViewProps {
-  initialCustomerId?: string;
-}
-
-export function MusicView({ initialCustomerId = "demo-customer" }: MusicViewProps) {
-  const [customerId] = useState<string>(initialCustomerId);
+export function MusicView() {
   const [musics, setMusics] = useState<Music[]>([]);
   const [filters, setFilters] = useState<MusicFilter>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -35,20 +30,20 @@ export function MusicView({ initialCustomerId = "demo-customer" }: MusicViewProp
   } | null>(null);
 
   const refreshMusics = useCallback(async () => {
-    const res = await listMusicsAction(customerId, filters);
+    const res = await listMusicsAction(filters);
     if (res.success) {
       setMusics(res.data);
     } else {
       setFeedbackMessage({ type: "error", text: res.error });
     }
-  }, [customerId, filters]);
+  }, [filters]);
 
   useEffect(() => {
     let isCancelled = false;
 
     async function load() {
       setIsLoading(true);
-      const res = await listMusicsAction(customerId, filters);
+      const res = await listMusicsAction(filters);
       if (!isCancelled) {
         if (res.success) {
           setMusics(res.data);
@@ -64,7 +59,7 @@ export function MusicView({ initialCustomerId = "demo-customer" }: MusicViewProp
     return () => {
       isCancelled = true;
     };
-  }, [filters, customerId]);
+  }, [filters]);
 
   const handleToggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -95,9 +90,9 @@ export function MusicView({ initialCustomerId = "demo-customer" }: MusicViewProp
   ): Promise<{ success: boolean; error?: string }> => {
     let res;
     if (editingMusic) {
-      res = await updateMusicAction(editingMusic.id, data, customerId);
+      res = await updateMusicAction(editingMusic.id, data);
     } else {
-      res = await createMusicAction(data, customerId);
+      res = await createMusicAction(data);
     }
 
     if (res.success) {
@@ -121,7 +116,7 @@ export function MusicView({ initialCustomerId = "demo-customer" }: MusicViewProp
   };
 
   const handleDelete = async (id: string) => {
-    const res = await deleteMusicAction(id, customerId);
+    const res = await deleteMusicAction(id);
     if (res.success) {
       setFeedbackMessage({
         type: "success",

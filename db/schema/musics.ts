@@ -1,11 +1,14 @@
 import { boolean, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import { musicalKeyEnum, musicGenreEnum } from "./enums";
+import { customers } from "./customers";
 
 export const musics = pgTable(
   "musics",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    customerId: text("customer_id").notNull(),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     artist: text("artist").notNull(),
     lyrics: text("lyrics"),
