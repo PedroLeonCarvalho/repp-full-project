@@ -10,12 +10,16 @@ import {
   updateMusic,
   MusicServiceError,
 } from "../services/music-service";
+import { lyricsService } from "../services/lyrics-service";
 import type {
   CreateMusicInput,
+  LyricsSearchResult,
   Music,
   MusicFilter,
+  SearchLyricsInput,
   UpdateMusicInput,
 } from "../types";
+
 
 export type ActionResult<T> =
   | { success: true; data: T }
@@ -108,3 +112,22 @@ export async function getMusicByIdAction(
     return { success: false, error: "Erro inesperado ao buscar música." };
   }
 }
+
+export async function searchLyricsAction(
+  input: SearchLyricsInput
+): Promise<ActionResult<LyricsSearchResult[]>> {
+  try {
+    await requireAuthCustomerId();
+    const results = await lyricsService.searchLyrics(input);
+    return { success: true, data: results };
+  } catch (err) {
+    if (err instanceof Error) {
+      return { success: false, error: err.message };
+    }
+    return {
+      success: false,
+      error: "Erro inesperado ao consultar letras.",
+    };
+  }
+}
+

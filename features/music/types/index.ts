@@ -45,3 +45,18 @@ export interface MusicFilter {
   skillLevel?: boolean;
   artist?: string;
 }
+
+export interface LyricsSearchResult {
+  id: string;
+  title: string;
+  artist: string;
+  album?: string | null;
+  duration?: number | null;
+  plainLyrics: string;
+}
+
+export interface SearchLyricsInput {
+  title: string;
+  artist?: string;
+}
+

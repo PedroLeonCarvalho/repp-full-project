@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { MUSICAL_KEYS, MUSIC_GENRES } from "@/db/schema/enums";
-import type { CreateMusicInput, Music, MusicalKey, MusicGenre } from "../types";
+import type { CreateMusicInput, LyricsSearchResult, Music, MusicalKey, MusicGenre } from "../types";
 import { GENRE_LABELS } from "./music-filters";
+import { searchLyricsAction } from "../actions/music-actions";
+import { LyricsSearchModal } from "./lyrics-search-modal";
 
 interface MusicFormProps {
   initialData?: Music | null;
@@ -68,6 +70,109 @@ function MusicFormModal({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Assisted Lyrics Search states
+  const [isSearchingLyrics, setIsSearchingLyrics] = useState(false);
+  const [searchResults, setSearchResults] = useState<LyricsSearchResult[]>([]);
+  const [isLyricsModalOpen, setIsLyricsModalOpen] = useState(false);
+  const [lyricsFeedback, setLyricsFeedback] = useState<{
+    type: "info" | "success" | "error";
+    text: string;
+  } | null>(null);
+
+  const handleSearchLyrics = async () => {
+    if (!title.trim()) {
+      setLyricsFeedback({
+        type: "error",
+        text: "Informe o título da música para buscar a letra.",
+      });
+      return;
+    }
+
+    setIsSearchingLyrics(true);
+    setLyricsFeedback(null);
+
+    try {
+      const res = await searchLyricsAction({
+        title: title.trim(),
+        artist: artist.trim() || undefined,
+      });
+
+      if (!res.success) {
+        setLyricsFeedback({
+          type: "error",
+          text: res.error || "Erro ao consultar o serviço de letras.",
+        });
+        return;
+      }
+
+      if (res.data.length === 0) {
+        setLyricsFeedback({
+          type: "info",
+          text: "Nenhuma letra encontrada para esta música no LRCLIB.",
+        });
+        return;
+      }
+
+      if (res.data.length === 1) {
+        const foundItem = res.data[0];
+        if (lyrics.trim() && lyrics.trim() !== foundItem.plainLyrics.trim()) {
+          if (
+            confirm(
+              `Deseja substituir a letra atual pela letra encontrada de "${foundItem.title}" (${foundItem.artist})?`
+            )
+          ) {
+            setLyrics(foundItem.plainLyrics);
+            setLyricsFeedback({
+              type: "success",
+              text: `Letra de "${foundItem.title}" importada com sucesso!`,
+            });
+          }
+        } else {
+          setLyrics(foundItem.plainLyrics);
+          setLyricsFeedback({
+            type: "success",
+            text: `Letra de "${foundItem.title}" importada com sucesso!`,
+          });
+        }
+      } else {
+        // Multiple matches -> Open selection modal
+        setSearchResults(res.data);
+        setIsLyricsModalOpen(true);
+      }
+    } catch {
+      setLyricsFeedback({
+        type: "error",
+        text: "Falha de conexão com o provedor de letras.",
+      });
+    } finally {
+      setIsSearchingLyrics(false);
+    }
+  };
+
+  const handleSelectLyricCandidate = (selectedText: string) => {
+    if (lyrics.trim() && lyrics.trim() !== selectedText.trim()) {
+      if (
+        confirm(
+          "Deseja substituir o conteúdo atual da letra pela versão selecionada?"
+        )
+      ) {
+        setLyrics(selectedText);
+        setLyricsFeedback({
+          type: "success",
+          text: "Letra selecionada importada para o formulário!",
+        });
+      }
+    } else {
+      setLyrics(selectedText);
+      setLyricsFeedback({
+        type: "success",
+        text: "Letra selecionada importada para o formulário!",
+      });
+    }
+    setIsLyricsModalOpen(false);
+  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -257,19 +362,68 @@ function MusicFormModal({
             </label>
           </div>
 
-          {/* Lyrics */}
+          {/* Lyrics with Assisted Search */}
           <div>
-            <label className="block text-xs font-medium text-zinc-300 mb-1">
-              Letra / Cifra
-            </label>
+            <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
+              <label className="block text-xs font-medium text-zinc-300">
+                Letra / Cifra
+              </label>
+
+              <button
+                type="button"
+                onClick={handleSearchLyrics}
+                disabled={!title.trim() || isSearchingLyrics}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-zinc-800 border border-zinc-700/80 px-3 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-zinc-700 hover:border-emerald-500/50 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm active:scale-95"
+                title={
+                  !title.trim()
+                    ? "Preencha o título da música para buscar a letra"
+                    : "Buscar letra na base pública LRCLIB"
+                }
+              >
+                {isSearchingLyrics ? (
+                  <>
+                    <span className="animate-spin text-xs">⏳</span>
+                    <span>Buscando letra...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🔍</span>
+                    <span>Buscar letra (LRCLIB)</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {lyricsFeedback && (
+              <div
+                className={`mb-2 rounded-xl p-2.5 text-xs flex items-center justify-between gap-2 ${
+                  lyricsFeedback.type === "success"
+                    ? "bg-emerald-950/60 border border-emerald-800 text-emerald-300"
+                    : lyricsFeedback.type === "error"
+                    ? "bg-red-950/60 border border-red-800 text-red-300"
+                    : "bg-zinc-800/80 border border-zinc-700 text-zinc-300"
+                }`}
+              >
+                <span>{lyricsFeedback.text}</span>
+                <button
+                  type="button"
+                  onClick={() => setLyricsFeedback(null)}
+                  className="text-zinc-400 hover:text-zinc-200 cursor-pointer text-xs p-1"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
             <textarea
-              rows={5}
+              rows={6}
               value={lyrics}
               onChange={(e) => setLyrics(e.target.value)}
-              placeholder="Cole aqui a letra e/ou cifra da música..."
-              className="w-full font-mono text-xs rounded-xl bg-zinc-800/80 p-3 text-zinc-100 border border-zinc-700/60 focus:border-emerald-500 focus:outline-none"
+              placeholder="Cole aqui a letra e/ou cifra da música ou clique em 'Buscar letra'..."
+              className="w-full font-mono text-xs rounded-xl bg-zinc-800/80 p-3 text-zinc-100 border border-zinc-700/60 focus:border-emerald-500 focus:outline-none leading-relaxed"
             />
           </div>
+
 
           {/* Notes */}
           <div>
@@ -337,6 +491,15 @@ function MusicFormModal({
           </div>
         </form>
       </div>
+
+      {/* Lyrics Candidate Selection Modal */}
+      <LyricsSearchModal
+        isOpen={isLyricsModalOpen}
+        results={searchResults}
+        onClose={() => setIsLyricsModalOpen(false)}
+        onSelect={handleSelectLyricCandidate}
+      />
     </div>
   );
 }
+
