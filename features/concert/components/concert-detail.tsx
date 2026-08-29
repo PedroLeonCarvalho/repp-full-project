@@ -19,6 +19,7 @@ interface ConcertDetailProps {
   onClose: () => void;
   onEdit: (concert: ConcertWithSetlist) => void;
   onDelete: (id: string) => void;
+  onOpenLiveSetlist?: () => void;
 }
 
 export function ConcertDetail({
@@ -26,6 +27,7 @@ export function ConcertDetail({
   onClose,
   onEdit,
   onDelete,
+  onOpenLiveSetlist,
 }: ConcertDetailProps) {
   const [concert, setConcert] = useState<ConcertWithSetlist | null>(null);
   const [artistStageName, setArtistStageName] = useState<string>("Artista");
@@ -271,10 +273,16 @@ export function ConcertDetail({
             {concert.setlist.length > 0 && (
               <button
                 type="button"
-                onClick={() => setPresentationStartIndex(0)}
+                onClick={() => {
+                  if (onOpenLiveSetlist) {
+                    onOpenLiveSetlist();
+                  } else {
+                    setPresentationStartIndex(0);
+                  }
+                }}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-1.5 text-xs font-bold text-zinc-950 hover:bg-emerald-400 transition-all shadow-md shadow-emerald-500/10 active:scale-95 cursor-pointer"
               >
-                <span>▶ Iniciar Show (Letras)</span>
+                <span>🎵 Ver Setlist ao Vivo</span>
               </button>
             )}
           </div>

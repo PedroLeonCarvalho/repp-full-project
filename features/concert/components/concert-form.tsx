@@ -2,14 +2,18 @@
 
 import { useEffect, useState } from "react";
 import type { Concert, CreateConcertInput, PaymentStatus } from "../types";
-import type { Contractor } from "@/features/contractor/types";
+import type { Contractor, CreateContractorInput } from "@/features/contractor/types";
 import type { AccompanyingMusician } from "@/features/musician/types";
 import { PAYMENT_STATUSES } from "@/db/schema/enums";
-import { listContractorsAction } from "@/features/contractor/actions/contractor-actions";
+import {
+  listContractorsAction,
+  createContractorAction,
+} from "@/features/contractor/actions/contractor-actions";
 import {
   listMusiciansAction,
   listConcertMusiciansAction,
 } from "@/features/musician/actions/musician-actions";
+import { ContractorForm } from "@/features/contractor/components/contractor-form";
 
 
 interface ConcertFormProps {
@@ -77,6 +81,7 @@ function ConcertFormModal({
   const [note, setNote] = useState(initialData?.note ?? "");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCreateContractorOpen, setIsCreateContractorOpen] = useState(false);
 
   // Musicians state
   const [allMusicians, setAllMusicians] = useState<AccompanyingMusician[]>([]);
@@ -146,6 +151,62 @@ function ConcertFormModal({
     );
   };
 
+  const handleContractorChange = (selectedId: string) => {
+    setContractorId(selectedId);
+    if (!selectedId) return;
+
+    const selectedContractor = contractors.find((c) => c.id === selectedId);
+    if (!selectedContractor) return;
+
+    // Fulfill Estabelecimento ou Evento (Title) according to contractor selected
+    if (selectedContractor.establishmentOrEventName?.trim()) {
+      if (!initialData || !title.trim()) {
+        setTitle(selectedContractor.establishmentOrEventName.trim());
+      }
+    } else if (selectedContractor.contactPersonName?.trim()) {
+      if (!initialData || !title.trim()) {
+        setTitle(selectedContractor.contactPersonName.trim());
+      }
+    }
+
+    // Fulfill address according to the selected contractor
+    if (selectedContractor.address?.trim()) {
+      if (!initialData || !location.trim()) {
+        setLocation(selectedContractor.address.trim());
+      }
+    }
+  };
+
+  const handleCreateContractor = async (data: CreateContractorInput) => {
+    const res = await createContractorAction(data);
+    if (res.success) {
+      const newContractor = res.data;
+      setContractors((prev) => [...prev, newContractor]);
+      setContractorId(newContractor.id);
+
+      // Auto-fill title & address for newly created contractor
+      if (newContractor.establishmentOrEventName?.trim()) {
+        if (!initialData || !title.trim()) {
+          setTitle(newContractor.establishmentOrEventName.trim());
+        }
+      } else if (newContractor.contactPersonName?.trim()) {
+        if (!initialData || !title.trim()) {
+          setTitle(newContractor.contactPersonName.trim());
+        }
+      }
+
+      if (newContractor.address?.trim()) {
+        if (!initialData || !location.trim()) {
+          setLocation(newContractor.address.trim());
+        }
+      }
+
+      setIsCreateContractorOpen(false);
+      return { success: true };
+    }
+    return { success: false, error: res.error };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -212,11 +273,48 @@ function ConcertFormModal({
         )}
 
         <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-4">
-          {/* Title / Event Name */}
+          {/* Contractor Select (1st field to be filled) with "+ Novo" button */}
           <div>
             <label className="block text-xs font-medium text-zinc-300 mb-1.5">
-              Título / Nome do Evento <span className="text-emerald-400">*</span>
+              Contratante / Estabelecimento
             </label>
+            <div className="flex items-center gap-2">
+              <select
+                value={contractorId}
+                onChange={(e) => handleContractorChange(e.target.value)}
+                className="flex-1 rounded-xl bg-zinc-800/80 px-3.5 py-2.5 text-sm text-zinc-100 border border-zinc-700/60 focus:border-emerald-500 focus:outline-none transition-all"
+              >
+                <option value="">Nenhum contratante vinculado</option>
+                {contractors.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.contactPersonName} {c.establishmentOrEventName ? `(${c.establishmentOrEventName})` : ""}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                onClick={() => setIsCreateContractorOpen(true)}
+                className="rounded-xl bg-emerald-500/15 border border-emerald-500/40 px-3 py-2.5 text-xs font-bold text-emerald-400 hover:bg-emerald-500/25 transition-all active:scale-95 shrink-0 inline-flex items-center gap-1 cursor-pointer"
+                title="Cadastrar novo contratante"
+              >
+                <span>+ Novo</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Title / Event Name (2nd field) */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-medium text-zinc-300">
+                Título / Nome do Evento <span className="text-emerald-400">*</span>
+              </label>
+              {contractorId && contractors.find((c) => c.id === contractorId)?.establishmentOrEventName && (
+                <span className="text-[10px] text-emerald-400 font-medium">
+                  Preenchido do contratante
+                </span>
+              )}
+            </div>
             <input
               type="text"
               required
@@ -227,30 +325,18 @@ function ConcertFormModal({
             />
           </div>
 
-          {/* Contractor Select */}
-          <div>
-            <label className="block text-xs font-medium text-zinc-300 mb-1.5">
-              Contratante / Estabelecimento
-            </label>
-            <select
-              value={contractorId}
-              onChange={(e) => setContractorId(e.target.value)}
-              className="w-full rounded-xl bg-zinc-800/80 px-3.5 py-2.5 text-sm text-zinc-100 border border-zinc-700/60 focus:border-emerald-500 focus:outline-none transition-all"
-            >
-              <option value="">Nenhum contratante vinculado</option>
-              {contractors.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.contactPersonName} {c.establishmentOrEventName ? `(${c.establishmentOrEventName})` : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-
           {/* Location */}
           <div>
-            <label className="block text-xs font-medium text-zinc-300 mb-1.5">
-              Local / Endereço / Estabelecimento
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-medium text-zinc-300">
+                Local / Endereço / Estabelecimento
+              </label>
+              {contractorId && contractors.find((c) => c.id === contractorId)?.address && (
+                <span className="text-[10px] text-emerald-400 font-medium">
+                  Endereço do contratante preenchido automaticamente
+                </span>
+              )}
+            </div>
             <input
               type="text"
               value={location}
@@ -526,6 +612,16 @@ function ConcertFormModal({
             </button>
           </div>
         </form>
+
+        {/* Modal to quickly create a new contractor */}
+        {isCreateContractorOpen && (
+          <ContractorForm
+            isOpen={isCreateContractorOpen}
+            initialData={null}
+            onClose={() => setIsCreateContractorOpen(false)}
+            onSubmit={handleCreateContractor}
+          />
+        )}
       </div>
     </div>
   );

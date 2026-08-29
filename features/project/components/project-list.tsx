@@ -17,6 +17,7 @@ interface ProjectListProps {
   onOpenCreateConcert: (projectId: string, projectName: string) => void;
   onOpenEditConcert: (concert: ConcertWithSetlist) => void;
   onOpenConcertDetail: (concertId: string) => void;
+  onOpenConcertSetlist: (concertId: string) => void;
   onDuplicateConcert: (concertId: string) => void;
   onDeleteConcert: (concertId: string) => void;
 }
@@ -56,6 +57,7 @@ export function ProjectList({
   onOpenCreateConcert,
   onOpenEditConcert,
   onOpenConcertDetail,
+  onOpenConcertSetlist,
   onDuplicateConcert,
   onDeleteConcert,
 }: ProjectListProps) {
@@ -307,13 +309,25 @@ export function ProjectList({
                             </div>
 
                             {/* Concert Action Buttons */}
-                            <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                            <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center flex-wrap">
                               <button
                                 type="button"
                                 onClick={() => onOpenConcertDetail(concert.id)}
-                                className="rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-colors cursor-pointer"
+                                className="rounded-lg bg-zinc-800 border border-zinc-700/70 px-2.5 py-1 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-700 transition-colors cursor-pointer inline-flex items-center gap-1"
+                                title="Ver dados da apresentação (endereço, cachê, etc.)"
                               >
-                                Ver Setlist
+                                <span>📋</span>
+                                <span>Ver Dados</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => onOpenConcertSetlist(concert.id)}
+                                className="rounded-lg bg-emerald-500/15 border border-emerald-500/40 px-2.5 py-1 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/25 transition-colors cursor-pointer inline-flex items-center gap-1"
+                                title="Abrir setlist e letras em tela cheia no palco"
+                              >
+                                <span>🎵</span>
+                                <span>Ver Setlist</span>
                               </button>
 
                               <button

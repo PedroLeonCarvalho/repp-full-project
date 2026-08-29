@@ -20,6 +20,7 @@ import { ProjectList } from "./project-list";
 import { ProjectForm } from "./project-form";
 import { ConcertForm } from "@/features/concert/components/concert-form";
 import { ConcertDetail } from "@/features/concert/components/concert-detail";
+import { ConcertLiveSetlist } from "@/features/concert/components/concert-live-setlist";
 
 export function ProjectView() {
   const [projects, setProjects] = useState<ProjectWithMusics[]>([]);
@@ -46,6 +47,9 @@ export function ProjectView() {
     name: string;
   } | null>(null);
   const [selectedConcertIdForDetail, setSelectedConcertIdForDetail] = useState<
+    string | null
+  >(null);
+  const [selectedConcertIdForSetlist, setSelectedConcertIdForSetlist] = useState<
     string | null
   >(null);
 
@@ -347,6 +351,9 @@ export function ProjectView() {
           onOpenConcertDetail={(concertId) =>
             setSelectedConcertIdForDetail(concertId)
           }
+          onOpenConcertSetlist={(concertId) =>
+            setSelectedConcertIdForSetlist(concertId)
+          }
           onDuplicateConcert={handleDuplicateConcert}
           onDeleteConcert={handleDeleteConcert}
         />
@@ -379,13 +386,18 @@ export function ProjectView() {
         />
       )}
 
-      {/* Concert Detail & Setlist Manager Modal */}
+      {/* Concert Detail & Setlist Manager Modal (Ver Dados) */}
       {selectedConcertIdForDetail && (
         <ConcertDetail
           concertId={selectedConcertIdForDetail}
           onClose={() => {
             setSelectedConcertIdForDetail(null);
             void refreshProjects();
+          }}
+          onOpenLiveSetlist={() => {
+            const cid = selectedConcertIdForDetail;
+            setSelectedConcertIdForDetail(null);
+            setSelectedConcertIdForSetlist(cid);
           }}
           onEdit={(concert) => {
             setSelectedConcertIdForDetail(null);
@@ -394,6 +406,17 @@ export function ProjectView() {
           onDelete={(id) => {
             setSelectedConcertIdForDetail(null);
             void handleDeleteConcert(id);
+          }}
+        />
+      )}
+
+      {/* Live Stage Setlist View (Ver Setlist) */}
+      {selectedConcertIdForSetlist && (
+        <ConcertLiveSetlist
+          concertId={selectedConcertIdForSetlist}
+          onClose={() => {
+            setSelectedConcertIdForSetlist(null);
+            void refreshProjects();
           }}
         />
       )}
