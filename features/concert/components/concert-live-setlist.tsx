@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import type { ConcertWithSetlist, SetlistItem } from "../types";
-import { getConcertByIdAction } from "../actions/concert-actions";
+import {
+  getConcertByIdAction,
+  reorderSetlistAction,
+} from "../actions/concert-actions";
 import { LyricsViewer } from "./lyrics-viewer";
 
 interface ConcertLiveSetlistProps {
@@ -20,6 +23,8 @@ export function ConcertLiveSetlist({
   const [fontSize, setFontSize] = useState<"normal" | "large" | "xlarge" | "xxlarge">("large");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>("");
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // Live real-time clock ticking every second
   useEffect(() => {
@@ -152,6 +157,95 @@ export function ConcertLiveSetlist({
       }
     } catch {
       // Ignore
+    }
+  };
+
+  // Desktop Drag and Drop handlers
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", `${index}`);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === dropIndex || !concert) {
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    const items = [...concert.setlist];
+    const [draggedItem] = items.splice(draggedIndex, 1);
+    items.splice(dropIndex, 0, draggedItem);
+
+    // Optimistic update
+    setConcert({ ...concert, setlist: items });
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+
+    // Persist new order
+    const orderedIds = items.map((it) => it.id);
+    await reorderSetlistAction(concertId, orderedIds);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  // Mobile / Touch Drag and Drop (Hold and Slide)
+  const handleTouchStart = (index: number) => {
+    setDraggedIndex(index);
+    setDragOverIndex(index);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (draggedIndex === null) return;
+    const touch = e.touches[0];
+    const targetElement = document.elementFromPoint(
+      touch.clientX,
+      touch.clientY
+    );
+    const row = targetElement?.closest(
+      "[data-setlist-index]"
+    ) as HTMLElement | null;
+    if (row && row.dataset.setlistIndex !== undefined) {
+      const targetIndex = parseInt(row.dataset.setlistIndex, 10);
+      if (!isNaN(targetIndex) && targetIndex !== dragOverIndex) {
+        setDragOverIndex(targetIndex);
+      }
+    }
+  };
+
+  const handleTouchEnd = async () => {
+    if (
+      draggedIndex !== null &&
+      dragOverIndex !== null &&
+      draggedIndex !== dragOverIndex &&
+      concert
+    ) {
+      const items = [...concert.setlist];
+      const [draggedItem] = items.splice(draggedIndex, 1);
+      items.splice(dragOverIndex, 0, draggedItem);
+
+      setConcert({ ...concert, setlist: items });
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+
+      const orderedIds = items.map((it) => it.id);
+      await reorderSetlistAction(concertId, orderedIds);
+    } else {
+      setDraggedIndex(null);
+      setDragOverIndex(null);
     }
   };
 
@@ -427,13 +521,13 @@ export function ConcertLiveSetlist({
       {/* Main Setlist List Container */}
       <main className="flex-1 overflow-y-auto px-3 sm:px-8 py-5 max-w-4xl mx-auto w-full">
         {/* Setlist Summary Bar */}
-        <div className="flex items-center justify-between pb-3 mb-4 border-b border-zinc-800/80 flex-wrap gap-2">
+        <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-zinc-800/80 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <span className="text-xs sm:text-sm font-bold text-zinc-200">
-              Músicas da Apresentação ({setlist.length})
+              Músicas ({setlist.length})
             </span>
             <span className="text-zinc-500 text-xs hidden sm:inline">
-              • Toque em &quot;Ver Letra&quot; para abrir a letra no palco
+              • Segure ⠿ para reordenar
             </span>
           </div>
 
@@ -441,9 +535,9 @@ export function ConcertLiveSetlist({
             <button
               type="button"
               onClick={() => setActiveLyricsIndex(0)}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-1.5 text-xs font-bold text-zinc-950 hover:bg-emerald-400 transition-all shadow-md shadow-emerald-500/10 active:scale-95 cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3 py-1 text-xs font-bold text-zinc-950 hover:bg-emerald-400 transition-all shadow-md shadow-emerald-500/10 active:scale-95 cursor-pointer"
             >
-              <span>▶ Iniciar do Começo (#1)</span>
+              <span>▶ Iniciar Show (#1)</span>
             </button>
           )}
         </div>
@@ -460,63 +554,94 @@ export function ConcertLiveSetlist({
             </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-2.5">
+          <div className="flex flex-col gap-1.5">
             {setlist.map((item, index) => {
               const music = item.music;
               if (!music) return null;
               const keyDisplay = music.preferredKey || music.originalKey;
               const noteText = music.note || item.note;
               const hasLyrics = Boolean(music.lyrics && music.lyrics.trim());
+              const isDragging = draggedIndex === index;
+              const isDragOver = dragOverIndex === index;
 
               return (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between p-3.5 sm:p-4 rounded-2xl border border-zinc-800/80 bg-zinc-900/70 hover:bg-zinc-900 hover:border-zinc-700/80 transition-all gap-3 group"
+                  data-setlist-index={index}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDrop={(e) => handleDrop(e, index)}
+                  onDragEnd={handleDragEnd}
+                  className={`flex items-center justify-between py-2 px-2.5 sm:px-3 rounded-xl border transition-all gap-2 group select-none ${
+                    isDragging
+                      ? "opacity-30 border-2 border-dashed border-emerald-500 bg-zinc-950/60"
+                      : isDragOver
+                      ? "border-2 border-emerald-500/80 bg-emerald-950/30 scale-[1.01]"
+                      : "border-zinc-800/80 bg-zinc-900/70 hover:bg-zinc-900 hover:border-zinc-700/80"
+                  }`}
                 >
-                  {/* Left: Position Number and Details */}
-                  <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-                    <span className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-zinc-800 text-zinc-300 font-extrabold text-xs sm:text-sm shrink-0 border border-zinc-700/50 group-hover:border-emerald-500/50 group-hover:text-emerald-400 transition-colors">
+                  {/* Left: Drag Handle, Number and Music Title (bigger letters, single line, truncate if too long) */}
+                  <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
+                    {/* Drag Handle (Hold and Slide) */}
+                    <div
+                      onTouchStart={() => handleTouchStart(index)}
+                      onTouchMove={handleTouchMove}
+                      onTouchEnd={handleTouchEnd}
+                      className="cursor-grab active:cursor-grabbing text-zinc-500 hover:text-zinc-200 select-none text-base sm:text-lg px-0.5 py-0.5 shrink-0 touch-none"
+                      title="Segure e deslize para reordenar"
+                    >
+                      ⠿
+                    </div>
+
+                    {/* Order number */}
+                    <span className="font-extrabold text-xs sm:text-sm text-zinc-400 shrink-0 w-6 text-center">
                       #{index + 1}
                     </span>
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h2 className="font-bold text-sm sm:text-base text-zinc-100 truncate tracking-tight">
-                          {music.title}
-                        </h2>
-
-                        {keyDisplay && (
-                          <span className="rounded-lg bg-emerald-950/80 border border-emerald-700/60 px-2 py-0.5 text-xs font-mono font-bold text-emerald-400 shrink-0">
-                            Tom: {keyDisplay}
-                          </span>
-                        )}
-
-                        {noteText && (
-                          <span className="rounded-lg bg-amber-950/40 border border-amber-800/50 px-2 py-0.5 text-[11px] text-amber-300 truncate max-w-[180px] sm:max-w-[300px]">
-                            💬 {noteText}
-                          </span>
-                        )}
-                      </div>
-
-                      <p className="text-xs text-zinc-400 truncate mt-0.5">
-                        {music.artist}
-                      </p>
-                    </div>
+                    {/* Music Title (bigger letters, emphasis, single row, hide excess with truncate) */}
+                    <span
+                      onClick={() => hasLyrics && setActiveLyricsIndex(index)}
+                      className={`font-bold text-base sm:text-lg text-zinc-100 truncate tracking-tight cursor-pointer hover:text-emerald-400 transition-colors ${
+                        !hasLyrics ? "cursor-default hover:text-zinc-100" : ""
+                      }`}
+                      title={music.title}
+                    >
+                      {music.title}
+                    </span>
                   </div>
 
-                  {/* Right: "Ver Letra" Action */}
-                  <div className="shrink-0">
+                  {/* Right: Tune (Tom), Notes & Compact "Letra" Button */}
+                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                    {/* Note / Observação badge (if present) */}
+                    {noteText && (
+                      <span
+                        className="rounded-md bg-amber-950/40 border border-amber-800/60 px-1.5 py-0.5 text-[11px] text-amber-300 truncate max-w-[90px] sm:max-w-[150px] hidden xs:inline"
+                        title={noteText}
+                      >
+                        💬 {noteText}
+                      </span>
+                    )}
+
+                    {/* Tune / Key (Tom) - Emphasized */}
+                    {keyDisplay && (
+                      <span className="rounded-lg bg-emerald-950 border border-emerald-500/70 px-2 py-0.5 text-xs sm:text-sm font-mono font-extrabold text-emerald-300 shrink-0">
+                        Tom: {keyDisplay}
+                      </span>
+                    )}
+
+                    {/* Compact "Letra" Button */}
                     {hasLyrics ? (
                       <button
                         type="button"
                         onClick={() => setActiveLyricsIndex(index)}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 px-3.5 py-2 text-xs font-bold text-emerald-400 hover:bg-emerald-500 hover:text-zinc-950 hover:border-emerald-500 transition-all shadow-sm active:scale-95 cursor-pointer"
+                        className="rounded-lg bg-emerald-500/15 border border-emerald-500/40 px-2.5 py-1 text-xs font-bold text-emerald-400 hover:bg-emerald-500 hover:text-zinc-950 transition-all active:scale-95 cursor-pointer shrink-0"
+                        title="Ver letra"
                       >
-                        <span>📜</span>
-                        <span>Ver Letra</span>
+                        Letra
                       </button>
                     ) : (
-                      <span className="rounded-xl bg-zinc-800/80 border border-zinc-700/50 px-3 py-1.5 text-[11px] font-medium text-zinc-500">
+                      <span className="rounded-lg bg-zinc-800/80 border border-zinc-700/50 px-2 py-1 text-[10px] font-medium text-zinc-500 shrink-0">
                         Sem letra
                       </span>
                     )}
