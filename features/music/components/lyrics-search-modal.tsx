@@ -7,7 +7,7 @@ interface LyricsSearchModalProps {
   isOpen: boolean;
   results: LyricsSearchResult[];
   onClose: () => void;
-  onSelect: (lyrics: string) => void;
+  onSelect: (result: LyricsSearchResult) => void;
 }
 
 export function LyricsSearchModal({
@@ -33,10 +33,10 @@ export function LyricsSearchModal({
           <div>
             <h3 className="text-base sm:text-lg font-bold text-zinc-50 flex items-center gap-2">
               <span>🔍</span>
-              <span>Letras Encontradas ({results.length})</span>
+              <span>Músicas Encontradas ({results.length})</span>
             </h3>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Selecione a versão mais adequada para importar para o formulário.
+              Selecione a versão para importar título, artista e letra para o formulário.
             </p>
           </div>
           <button
@@ -83,11 +83,11 @@ export function LyricsSearchModal({
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onSelect(item.plainLyrics);
+                      onSelect(item);
                     }}
                     className="shrink-0 rounded-xl bg-emerald-500 px-3 py-1.5 text-xs font-bold text-zinc-950 hover:bg-emerald-400 transition-all shadow-sm active:scale-95 cursor-pointer"
                   >
-                    Usar Esta Letra
+                    Usar Esta Música
                   </button>
                 </div>
 

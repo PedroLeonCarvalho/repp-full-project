@@ -5,6 +5,8 @@ import { setlistItems } from "@/db/schema/setlist-items";
 import { musics } from "@/db/schema/musics";
 import { projects } from "@/db/schema/projects";
 import { contractors } from "@/db/schema/contractors";
+import { concertMusicians } from "@/db/schema/concert-musicians";
+import { accompanyingMusicians } from "@/db/schema/accompanying-musicians";
 import type {
   Concert,
   ConcertWithSetlist,
@@ -98,6 +100,37 @@ export async function createConcert(
     })
     .returning();
 
+  if (validated.musicians && validated.musicians.length > 0) {
+    const musicianIds = validated.musicians.map((m) => m.musicianId);
+    const userMusicians = await db
+      .select({ id: accompanyingMusicians.id })
+      .from(accompanyingMusicians)
+      .where(
+        and(
+          eq(accompanyingMusicians.customerId, customerId),
+          inArray(accompanyingMusicians.id, musicianIds)
+        )
+      );
+
+    const validIdSet = new Set(userMusicians.map((m) => m.id));
+    const validMusicians = validated.musicians.filter((m) =>
+      validIdSet.has(m.musicianId)
+    );
+
+    if (validMusicians.length > 0) {
+      await db.insert(concertMusicians).values(
+        validMusicians.map((m) => ({
+          concertId: created.id,
+          musicianId: m.musicianId,
+          agreedFee:
+            m.agreedFee !== undefined && m.agreedFee !== null
+              ? String(m.agreedFee)
+              : null,
+        }))
+      );
+    }
+  }
+
   return mapConcert(created);
 }
 
@@ -154,6 +187,43 @@ export async function updateConcert(
     updateData.paymentStatus = validated.paymentStatus;
   }
   if (validated.note !== undefined) updateData.note = validated.note || null;
+
+  if (validated.musicians !== undefined) {
+    await db
+      .delete(concertMusicians)
+      .where(eq(concertMusicians.concertId, id));
+
+    if (validated.musicians.length > 0) {
+      const musicianIds = validated.musicians.map((m) => m.musicianId);
+      const userMusicians = await db
+        .select({ id: accompanyingMusicians.id })
+        .from(accompanyingMusicians)
+        .where(
+          and(
+            eq(accompanyingMusicians.customerId, customerId),
+            inArray(accompanyingMusicians.id, musicianIds)
+          )
+        );
+
+      const validIdSet = new Set(userMusicians.map((m) => m.id));
+      const validMusicians = validated.musicians.filter((m) =>
+        validIdSet.has(m.musicianId)
+      );
+
+      if (validMusicians.length > 0) {
+        await db.insert(concertMusicians).values(
+          validMusicians.map((m) => ({
+            concertId: id,
+            musicianId: m.musicianId,
+            agreedFee:
+              m.agreedFee !== undefined && m.agreedFee !== null
+                ? String(m.agreedFee)
+                : null,
+          }))
+        );
+      }
+    }
+  }
 
   if (Object.keys(updateData).length === 0) {
     return mapConcert(existing);
@@ -229,12 +299,38 @@ export async function getConcertById(
 
   const mappedConcert = mapConcert(concert.concert);
 
+  const musicianRows = await db
+    .select({
+      id: concertMusicians.id,
+      concertId: concertMusicians.concertId,
+      musicianId: concertMusicians.musicianId,
+      agreedFee: concertMusicians.agreedFee,
+      createdAt: concertMusicians.createdAt,
+      musician: accompanyingMusicians,
+    })
+    .from(concertMusicians)
+    .innerJoin(
+      accompanyingMusicians,
+      eq(accompanyingMusicians.id, concertMusicians.musicianId)
+    )
+    .where(eq(concertMusicians.concertId, id));
+
+  const musicians = musicianRows.map((r) => ({
+    id: r.id,
+    concertId: r.concertId,
+    musicianId: r.musicianId,
+    agreedFee: r.agreedFee ? parseFloat(r.agreedFee) : null,
+    createdAt: r.createdAt,
+    musician: r.musician,
+  }));
+
   return {
     ...mappedConcert,
     projectName: concert.projectName,
     contractorName: concert.contractorName,
     setlist: items,
     setlistCount: items.length,
+    musicians,
   };
 }
 
@@ -319,6 +415,20 @@ export async function duplicateConcert(
         musicId: item.musicId,
         position: item.position,
         note: item.note,
+      });
+    }
+  }
+
+  // 3. Clone musicians
+  if (original.musicians && original.musicians.length > 0) {
+    for (const m of original.musicians) {
+      await db.insert(concertMusicians).values({
+        concertId: cloned.id,
+        musicianId: m.musicianId,
+        agreedFee:
+          m.agreedFee !== null && m.agreedFee !== undefined
+            ? String(m.agreedFee)
+            : null,
       });
     }
   }

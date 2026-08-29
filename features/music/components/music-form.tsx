@@ -119,20 +119,24 @@ function MusicFormModal({
         if (lyrics.trim() && lyrics.trim() !== foundItem.plainLyrics.trim()) {
           if (
             confirm(
-              `Deseja substituir a letra atual pela letra encontrada de "${foundItem.title}" (${foundItem.artist})?`
+              `Deseja substituir os dados da música pelos dados de "${foundItem.title}" (${foundItem.artist})?`
             )
           ) {
+            setTitle(foundItem.title);
+            setArtist(foundItem.artist);
             setLyrics(foundItem.plainLyrics);
             setLyricsFeedback({
               type: "success",
-              text: `Letra de "${foundItem.title}" importada com sucesso!`,
+              text: `Música "${foundItem.title}" (${foundItem.artist}) importada com sucesso!`,
             });
           }
         } else {
+          setTitle(foundItem.title);
+          setArtist(foundItem.artist);
           setLyrics(foundItem.plainLyrics);
           setLyricsFeedback({
             type: "success",
-            text: `Letra de "${foundItem.title}" importada com sucesso!`,
+            text: `Música "${foundItem.title}" (${foundItem.artist}) importada com sucesso!`,
           });
         }
       } else {
@@ -150,24 +154,28 @@ function MusicFormModal({
     }
   };
 
-  const handleSelectLyricCandidate = (selectedText: string) => {
-    if (lyrics.trim() && lyrics.trim() !== selectedText.trim()) {
+  const handleSelectLyricCandidate = (selectedItem: LyricsSearchResult) => {
+    if (lyrics.trim() && lyrics.trim() !== selectedItem.plainLyrics.trim()) {
       if (
         confirm(
-          "Deseja substituir o conteúdo atual da letra pela versão selecionada?"
+          `Deseja substituir os dados da música pelos dados de "${selectedItem.title}" (${selectedItem.artist})?`
         )
       ) {
-        setLyrics(selectedText);
+        setTitle(selectedItem.title);
+        setArtist(selectedItem.artist);
+        setLyrics(selectedItem.plainLyrics);
         setLyricsFeedback({
           type: "success",
-          text: "Letra selecionada importada para o formulário!",
+          text: `Música "${selectedItem.title}" (${selectedItem.artist}) importada com sucesso!`,
         });
       }
     } else {
-      setLyrics(selectedText);
+      setTitle(selectedItem.title);
+      setArtist(selectedItem.artist);
+      setLyrics(selectedItem.plainLyrics);
       setLyricsFeedback({
         type: "success",
-        text: "Letra selecionada importada para o formulário!",
+        text: `Música "${selectedItem.title}" (${selectedItem.artist}) importada com sucesso!`,
       });
     }
     setIsLyricsModalOpen(false);
@@ -258,15 +266,73 @@ function MusicFormModal({
             <label className="block text-xs font-medium text-zinc-300 mb-1">
               Título da Música <span className="text-emerald-400">*</span>
             </label>
-            <input
-              type="text"
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Ex: Como Nossos Pais"
-              className="w-full rounded-xl bg-zinc-800/80 px-3.5 py-2.5 text-sm text-zinc-100 border border-zinc-700/60 focus:border-emerald-500 focus:outline-none"
-            />
+            <div className="flex gap-2">
+              <input
+                type="text"
+                required
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (title.trim() && !isSearchingLyrics) {
+                      void handleSearchLyrics();
+                    }
+                  }
+                }}
+                placeholder="Ex: Como Nossos Pais"
+                className="flex-1 min-w-0 rounded-xl bg-zinc-800/80 px-3.5 py-2.5 text-sm text-zinc-100 border border-zinc-700/60 focus:border-emerald-500 focus:outline-none placeholder:text-zinc-500"
+              />
+              <button
+                type="button"
+                onClick={handleSearchLyrics}
+                disabled={!title.trim() || isSearchingLyrics}
+                className="inline-flex items-center justify-center gap-1.5 shrink-0 rounded-xl bg-zinc-800 border border-zinc-700/80 hover:border-emerald-500/50 hover:bg-zinc-700 px-3 sm:px-3.5 py-2 text-xs font-semibold text-emerald-400 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm active:scale-95"
+                title={
+                  !title.trim()
+                    ? "Preencha o título da música para buscar a letra no LRCLIB"
+                    : "Buscar letra na base pública LRCLIB"
+                }
+              >
+                {isSearchingLyrics ? (
+                  <>
+                    <span className="animate-spin text-xs">⏳</span>
+                    <span className="text-xs">Buscando...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🔍</span>
+                    <span className="hidden sm:inline">Buscar Letra (LRCLIB)</span>
+                    <span className="sm:hidden">Buscar (LRCLIB)</span>
+                  </>
+                )}
+              </button>
+            </div>
+            <p className="text-[11px] text-zinc-500 mt-1">
+              Digite o título e pressione Enter ou clique em &quot;Buscar Letra&quot; para preencher os dados via LRCLIB.
+            </p>
           </div>
+
+          {lyricsFeedback && (
+            <div
+              className={`rounded-xl p-2.5 text-xs flex items-center justify-between gap-2 ${
+                lyricsFeedback.type === "success"
+                  ? "bg-emerald-950/60 border border-emerald-800 text-emerald-300"
+                  : lyricsFeedback.type === "error"
+                  ? "bg-red-950/60 border border-red-800 text-red-300"
+                  : "bg-zinc-800/80 border border-zinc-700 text-zinc-300"
+              }`}
+            >
+              <span>{lyricsFeedback.text}</span>
+              <button
+                type="button"
+                onClick={() => setLyricsFeedback(null)}
+                className="text-zinc-400 hover:text-zinc-200 cursor-pointer text-xs p-1"
+              >
+                ✕
+              </button>
+            </div>
+          )}
 
           {/* Artist */}
           <div>
@@ -362,64 +428,16 @@ function MusicFormModal({
             </label>
           </div>
 
-          {/* Lyrics with Assisted Search */}
+          {/* Lyrics */}
           <div>
-            <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
-              <label className="block text-xs font-medium text-zinc-300">
-                Letra / Cifra
-              </label>
-
-              <button
-                type="button"
-                onClick={handleSearchLyrics}
-                disabled={!title.trim() || isSearchingLyrics}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-zinc-800 border border-zinc-700/80 px-3 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-zinc-700 hover:border-emerald-500/50 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm active:scale-95"
-                title={
-                  !title.trim()
-                    ? "Preencha o título da música para buscar a letra"
-                    : "Buscar letra na base pública LRCLIB"
-                }
-              >
-                {isSearchingLyrics ? (
-                  <>
-                    <span className="animate-spin text-xs">⏳</span>
-                    <span>Buscando letra...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>🔍</span>
-                    <span>Buscar letra (LRCLIB)</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            {lyricsFeedback && (
-              <div
-                className={`mb-2 rounded-xl p-2.5 text-xs flex items-center justify-between gap-2 ${
-                  lyricsFeedback.type === "success"
-                    ? "bg-emerald-950/60 border border-emerald-800 text-emerald-300"
-                    : lyricsFeedback.type === "error"
-                    ? "bg-red-950/60 border border-red-800 text-red-300"
-                    : "bg-zinc-800/80 border border-zinc-700 text-zinc-300"
-                }`}
-              >
-                <span>{lyricsFeedback.text}</span>
-                <button
-                  type="button"
-                  onClick={() => setLyricsFeedback(null)}
-                  className="text-zinc-400 hover:text-zinc-200 cursor-pointer text-xs p-1"
-                >
-                  ✕
-                </button>
-              </div>
-            )}
-
+            <label className="block text-xs font-medium text-zinc-300 mb-1">
+              Letra / Cifra
+            </label>
             <textarea
               rows={6}
               value={lyrics}
               onChange={(e) => setLyrics(e.target.value)}
-              placeholder="Cole aqui a letra e/ou cifra da música ou clique em 'Buscar letra'..."
+              placeholder="Cole aqui a letra e/ou cifra da música ou busque pelo título acima..."
               className="w-full font-mono text-xs rounded-xl bg-zinc-800/80 p-3 text-zinc-100 border border-zinc-700/60 focus:border-emerald-500 focus:outline-none leading-relaxed"
             />
           </div>

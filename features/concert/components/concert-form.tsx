@@ -3,8 +3,13 @@
 import { useEffect, useState } from "react";
 import type { Concert, CreateConcertInput, PaymentStatus } from "../types";
 import type { Contractor } from "@/features/contractor/types";
+import type { AccompanyingMusician } from "@/features/musician/types";
 import { PAYMENT_STATUSES } from "@/db/schema/enums";
 import { listContractorsAction } from "@/features/contractor/actions/contractor-actions";
+import {
+  listMusiciansAction,
+  listConcertMusiciansAction,
+} from "@/features/musician/actions/musician-actions";
 
 
 interface ConcertFormProps {
@@ -73,15 +78,73 @@ function ConcertFormModal({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Musicians state
+  const [allMusicians, setAllMusicians] = useState<AccompanyingMusician[]>([]);
+  const [selectedMusicians, setSelectedMusicians] = useState<
+    Array<{ musicianId: string; agreedFee: number | null }>
+  >([]);
+  const [currentMusicianId, setCurrentMusicianId] = useState("");
+  const [currentAgreedFee, setCurrentAgreedFee] = useState("");
+
   useEffect(() => {
-    async function loadContractors() {
-      const res = await listContractorsAction();
-      if (res.success && res.data) {
-        setContractors(res.data);
+    let isCancelled = false;
+
+    async function loadData() {
+      const [contractorsRes, musiciansRes, concertMusiciansRes] =
+        await Promise.all([
+          listContractorsAction(),
+          listMusiciansAction(),
+          initialData
+            ? listConcertMusiciansAction(initialData.id)
+            : Promise.resolve(null),
+        ]);
+
+      if (!isCancelled) {
+        if (contractorsRes.success && contractorsRes.data) {
+          setContractors(contractorsRes.data);
+        }
+        if (musiciansRes.success && musiciansRes.data) {
+          setAllMusicians(musiciansRes.data);
+        }
+        if (
+          concertMusiciansRes &&
+          concertMusiciansRes.success &&
+          concertMusiciansRes.data
+        ) {
+          setSelectedMusicians(
+            concertMusiciansRes.data.map((cm) => ({
+              musicianId: cm.musicianId,
+              agreedFee: cm.agreedFee,
+            }))
+          );
+        }
       }
     }
-    void loadContractors();
-  }, []);
+
+    void loadData();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [initialData]);
+
+  const handleAddMusician = () => {
+    if (!currentMusicianId) return;
+    if (selectedMusicians.some((m) => m.musicianId === currentMusicianId)) return;
+    const fee = currentAgreedFee ? parseFloat(currentAgreedFee) : null;
+    setSelectedMusicians((prev) => [
+      ...prev,
+      { musicianId: currentMusicianId, agreedFee: fee },
+    ]);
+    setCurrentMusicianId("");
+    setCurrentAgreedFee("");
+  };
+
+  const handleRemoveMusician = (musicianId: string) => {
+    setSelectedMusicians((prev) =>
+      prev.filter((m) => m.musicianId !== musicianId)
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,6 +171,7 @@ function ConcertFormModal({
         travelCost: travelCost ? parseFloat(travelCost) : null,
         paymentStatus,
         note: note.trim() || null,
+        musicians: selectedMusicians,
       });
 
       if (res.success) {
@@ -318,6 +382,112 @@ function ConcertFormModal({
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* Accompanying Musicians Section (Optional) */}
+          <div className="rounded-2xl bg-zinc-800/40 p-4 border border-zinc-700/50 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-200">
+                  Músicos Acompanhantes <span className="text-zinc-500 font-normal">(Opcional)</span>
+                </label>
+                <p className="text-[11px] text-zinc-400 mt-0.5">
+                  Vincule músicos a este show agora ou adicione-os depois nos detalhes do evento.
+                </p>
+              </div>
+              <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[11px] font-medium text-emerald-400 border border-zinc-700">
+                {selectedMusicians.length} selecionado(s)
+              </span>
+            </div>
+
+            {/* Selector and Fee inputs */}
+            {allMusicians.length > 0 ? (
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <select
+                  value={currentMusicianId}
+                  onChange={(e) => setCurrentMusicianId(e.target.value)}
+                  className="flex-1 rounded-xl bg-zinc-800/80 px-3 py-2 text-xs text-zinc-100 border border-zinc-700/60 focus:border-emerald-500 focus:outline-none"
+                >
+                  <option value="">Selecione um músico...</option>
+                  {allMusicians
+                    .filter(
+                      (m) =>
+                        !selectedMusicians.some((sm) => sm.musicianId === m.id)
+                    )
+                    .map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} {m.instrument ? `• ${m.instrument}` : ""}
+                      </option>
+                    ))}
+                </select>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="Cachê R$"
+                    value={currentAgreedFee}
+                    onChange={(e) => setCurrentAgreedFee(e.target.value)}
+                    className="w-28 rounded-xl bg-zinc-800/80 px-3 py-2 text-xs text-zinc-100 placeholder-zinc-500 border border-zinc-700/60 focus:border-emerald-500 focus:outline-none"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={handleAddMusician}
+                    disabled={!currentMusicianId}
+                    className="inline-flex items-center justify-center gap-1 rounded-xl bg-emerald-500/15 border border-emerald-500/40 px-3.5 py-2 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/25 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
+                  >
+                    + Adicionar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-zinc-400 bg-zinc-800/30 rounded-xl p-3 border border-zinc-700/30">
+                Nenhum músico cadastrado no momento. Você poderá cadastrar músicos na aba &quot;Músicos&quot; e vinculá-los a este evento a qualquer momento.
+              </p>
+            )}
+
+            {/* List of currently selected musicians */}
+            {selectedMusicians.length > 0 && (
+              <div className="space-y-1.5 pt-1">
+                {selectedMusicians.map((sm) => {
+                  const musicianInfo = allMusicians.find(
+                    (m) => m.id === sm.musicianId
+                  );
+                  return (
+                    <div
+                      key={sm.musicianId}
+                      className="flex items-center justify-between gap-2 rounded-xl bg-zinc-800/80 px-3 py-2 border border-zinc-700/60 text-xs"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-medium text-zinc-100 truncate">
+                          {musicianInfo?.name ?? "Músico"}
+                        </span>
+                        {musicianInfo?.instrument && (
+                          <span className="rounded-md bg-zinc-700/60 px-1.5 py-0.5 text-[10px] text-zinc-300">
+                            {musicianInfo.instrument}
+                          </span>
+                        )}
+                        {sm.agreedFee !== null && sm.agreedFee !== undefined && (
+                          <span className="text-emerald-400 font-semibold">
+                            R$ {Number(sm.agreedFee).toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveMusician(sm.musicianId)}
+                        className="rounded-lg p-1 text-zinc-400 hover:text-red-400 hover:bg-zinc-700/50 transition-colors cursor-pointer"
+                        title="Remover músico"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Observations */}

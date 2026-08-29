@@ -1,4 +1,5 @@
 import type { Music } from "@/features/music/types";
+import type { ConcertMusician } from "@/features/musician/types";
 import { PAYMENT_STATUSES } from "@/db/schema/enums";
 
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
@@ -38,6 +39,12 @@ export interface ConcertWithSetlist extends Concert {
   setlistCount: number;
   projectName?: string;
   contractorName?: string | null;
+  musicians?: ConcertMusician[];
+}
+
+export interface ConcertMusicianInput {
+  musicianId: string;
+  agreedFee?: number | null;
 }
 
 export interface CreateConcertInput {
@@ -54,6 +61,7 @@ export interface CreateConcertInput {
   travelCost?: number | null;
   paymentStatus?: PaymentStatus;
   note?: string | null;
+  musicians?: ConcertMusicianInput[];
 }
 
 export interface UpdateConcertInput {
@@ -69,5 +77,6 @@ export interface UpdateConcertInput {
   travelCost?: number | null;
   paymentStatus?: PaymentStatus;
   note?: string | null;
+  musicians?: ConcertMusicianInput[];
 }
 

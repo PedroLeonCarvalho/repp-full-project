@@ -13,6 +13,11 @@ const optionalString = (max: number, msg?: string) =>
   );
 
 
+export const concertMusicianItemSchema = z.object({
+  musicianId: z.string().uuid("ID de músico inválido"),
+  agreedFee: z.number().min(0, "O cachê não pode ser negativo").optional().nullable(),
+});
+
 export const createConcertSchema = z.object({
   projectId: z.string().uuid("ID de projeto inválido"),
   contractorId: optionalUuid,
@@ -31,6 +36,7 @@ export const createConcertSchema = z.object({
   travelCost: z.number().min(0).optional().nullable(),
   paymentStatus: z.enum(PAYMENT_STATUSES).default("PENDING"),
   note: optionalString(2000),
+  musicians: z.array(concertMusicianItemSchema).optional(),
 });
 
 export const updateConcertSchema = z.object({
@@ -51,6 +57,7 @@ export const updateConcertSchema = z.object({
   travelCost: z.number().min(0).optional().nullable(),
   paymentStatus: z.enum(PAYMENT_STATUSES).optional(),
   note: optionalString(2000),
+  musicians: z.array(concertMusicianItemSchema).optional(),
 });
 
 
