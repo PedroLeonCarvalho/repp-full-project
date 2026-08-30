@@ -363,7 +363,7 @@ export function ProjectList({
                   ) : (
                     <div className="flex flex-col gap-2.5">
                       {[...concerts]
-                        .sort((a, b) => getConcertTimestamp(a) - getConcertTimestamp(b))
+                        .sort((a, b) => getConcertTimestamp(b) - getConcertTimestamp(a))
                         .map((concert) => {
                           const isPassed = isConcertPassed(concert, now);
                           const dateStr = new Date(

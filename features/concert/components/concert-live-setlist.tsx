@@ -20,7 +20,7 @@ export function ConcertLiveSetlist({
   const [concert, setConcert] = useState<ConcertWithSetlist | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeLyricsIndex, setActiveLyricsIndex] = useState<number | null>(null);
-  const [fontSize, setFontSize] = useState<"normal" | "large" | "xlarge" | "xxlarge">("large");
+  const fontSize = "large" as const;
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>("");
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -273,128 +273,46 @@ export function ConcertLiveSetlist({
 
     return (
       <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950 text-zinc-50 overflow-hidden select-none animate-in fade-in duration-150">
-        {/* Top Header */}
-        <header className="flex items-center justify-between border-b border-zinc-800 bg-zinc-900/95 px-3 sm:px-6 py-2.5 shrink-0 backdrop-blur-md gap-2">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <button
-              type="button"
-              onClick={() => setActiveLyricsIndex(null)}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-zinc-800 border border-zinc-700/80 px-2.5 py-1.5 text-xs font-semibold text-zinc-200 hover:text-white hover:bg-zinc-700 transition-all cursor-pointer shrink-0"
-              title="Voltar para a lista do setlist"
-            >
-              <span>⬅</span>
-              <span className="hidden sm:inline">Setlist</span>
-            </button>
+        {/* Floating Close Button at Top Right */}
+        <div className="fixed top-3 right-3 z-30">
+          <button
+            type="button"
+            onClick={() => setActiveLyricsIndex(null)}
+            className="flex items-center gap-1.5 rounded-full bg-zinc-900/80 hover:bg-zinc-800/90 border border-zinc-700/60 px-3.5 py-1.5 text-xs font-bold text-zinc-200 hover:text-white backdrop-blur-md shadow-lg transition-all cursor-pointer"
+            title="Fechar letra e voltar ao setlist"
+          >
+            <span>✕</span>
+            <span>Fechar</span>
+          </button>
+        </div>
 
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500 font-extrabold text-zinc-950 text-sm shrink-0 shadow-md shadow-emerald-500/20">
-              #{activeLyricsIndex + 1}
-            </span>
-
+        {/* Main Lyrics Area (Full Height, No Top or Bottom Bar) */}
+        <main className="flex-1 overflow-y-auto px-4 sm:px-12 pt-4 pb-24 max-w-4xl mx-auto w-full">
+          {/* In-flow Song Information Header (scrolls with content) */}
+          <div className="mb-4 pb-3 border-b border-zinc-800/70 flex items-center justify-between gap-3 pr-24">
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-base sm:text-xl font-black text-zinc-50 truncate tracking-tight">
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-500 font-black text-zinc-950 text-xs shrink-0">
+                  #{activeLyricsIndex + 1}
+                </span>
+                <h1 className="text-base sm:text-lg font-black text-zinc-100 truncate tracking-tight">
                   {currentMusic.title}
                 </h1>
                 {keyDisplay && (
-                  <span className="rounded-lg bg-emerald-950 border border-emerald-500/80 px-2 py-0.5 font-mono font-bold text-xs text-emerald-400">
+                  <span className="rounded-md bg-emerald-950 border border-emerald-500/70 px-2 py-0.5 font-mono font-bold text-xs text-emerald-400">
                     Tom: {keyDisplay}
                   </span>
                 )}
               </div>
-              <span className="text-[11px] sm:text-xs text-zinc-400 truncate block">
-                {currentMusic.artist} •{" "}
-                <span className="text-zinc-500">{concert.title}</span>
+              <span className="text-[11px] sm:text-xs text-zinc-400 truncate block mt-0.5">
+                {currentMusic.artist} • <span className="text-zinc-500">{concert.title}</span>
               </span>
             </div>
           </div>
 
-          {/* Center/Right: Schedule & Live Clock */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* Real-time Clock */}
-            <div className="flex items-center gap-1.5 rounded-xl bg-zinc-950 border border-zinc-800/90 px-2.5 py-1">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-              </span>
-              <span className="font-mono text-xs sm:text-sm font-bold text-emerald-400 tracking-wider">
-                {currentTime}
-              </span>
-            </div>
-
-            {/* Font Size Adjusters */}
-            <div className="hidden sm:flex items-center rounded-xl bg-zinc-900 border border-zinc-800 p-0.5">
-              <button
-                type="button"
-                onClick={() => setFontSize("normal")}
-                className={`px-2 py-1 text-xs rounded-lg font-bold transition-colors cursor-pointer ${
-                  fontSize === "normal"
-                    ? "bg-emerald-500 text-zinc-950"
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                A
-              </button>
-              <button
-                type="button"
-                onClick={() => setFontSize("large")}
-                className={`px-2 py-1 text-xs rounded-lg font-bold transition-colors cursor-pointer ${
-                  fontSize === "large"
-                    ? "bg-emerald-500 text-zinc-950"
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                A+
-              </button>
-              <button
-                type="button"
-                onClick={() => setFontSize("xlarge")}
-                className={`px-2 py-1 text-xs rounded-lg font-bold transition-colors cursor-pointer ${
-                  fontSize === "xlarge"
-                    ? "bg-emerald-500 text-zinc-950"
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                A++
-              </button>
-              <button
-                type="button"
-                onClick={() => setFontSize("xxlarge")}
-                className={`px-2 py-1 text-xs rounded-lg font-bold transition-colors cursor-pointer ${
-                  fontSize === "xxlarge"
-                    ? "bg-emerald-500 text-zinc-950"
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                MAX
-              </button>
-            </div>
-
-            {/* Fullscreen Toggle */}
-            <button
-              type="button"
-              onClick={toggleFullscreen}
-              className="rounded-xl border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-300 hover:text-white transition-colors cursor-pointer hidden xs:inline"
-              title="Alternar tela cheia"
-            >
-              {isFullscreen ? "⛶ ON" : "⛶"}
-            </button>
-
-            {/* Close lyrics button */}
-            <button
-              type="button"
-              onClick={() => setActiveLyricsIndex(null)}
-              className="rounded-xl bg-zinc-800 px-2.5 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white transition-colors cursor-pointer"
-            >
-              ✕
-            </button>
-          </div>
-        </header>
-
-        {/* Main Lyrics Area */}
-        <main className="flex-1 overflow-y-auto px-4 sm:px-12 py-6 max-w-4xl mx-auto w-full">
           {/* Note Banner */}
           {currentMusic.note && (
-            <div className="mb-6 rounded-2xl bg-amber-950/40 border border-amber-800/80 p-3.5 text-xs sm:text-sm text-amber-200 shadow-sm">
+            <div className="mb-4 rounded-xl bg-amber-950/40 border border-amber-800/80 p-2.5 sm:p-3 text-xs sm:text-sm text-amber-200 shadow-sm">
               <span className="font-extrabold uppercase tracking-wider text-[10px] sm:text-xs block mb-0.5 text-amber-400">
                 💬 Observação:
               </span>
@@ -405,34 +323,18 @@ export function ConcertLiveSetlist({
           <LyricsViewer lyrics={currentMusic.lyrics || ""} fontSize={fontSize} />
         </main>
 
-        {/* Bottom Navigation */}
-        <footer className="border-t border-zinc-800 bg-zinc-900/95 px-4 sm:px-8 py-3 shrink-0 flex items-center justify-between backdrop-blur-md">
+        {/* Floating PROXIMA Button at the Bottom (No bar background) */}
+        {activeLyricsIndex < setlist.length - 1 && (
           <button
             type="button"
-            disabled={activeLyricsIndex === 0}
-            onClick={() => setActiveLyricsIndex((prev) => (prev !== null ? prev - 1 : null))}
-            className="flex items-center gap-2 rounded-xl bg-zinc-800 border border-zinc-700/80 px-4 py-2.5 text-xs sm:text-sm font-bold text-zinc-200 hover:bg-zinc-700 transition-all disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer"
-          >
-            <span>◀</span>
-            <span className="hidden xs:inline">Anterior</span>
-          </button>
-
-          <div className="text-center">
-            <span className="text-xs sm:text-sm font-semibold text-zinc-300">
-              Música {activeLyricsIndex + 1} de {setlist.length}
-            </span>
-          </div>
-
-          <button
-            type="button"
-            disabled={activeLyricsIndex === setlist.length - 1}
             onClick={() => setActiveLyricsIndex((prev) => (prev !== null ? prev + 1 : null))}
-            className="flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 text-xs sm:text-sm font-black text-zinc-950 hover:bg-emerald-400 transition-all shadow-md shadow-emerald-500/10 disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer"
+            className="fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-6 py-3 text-xs sm:text-sm font-black shadow-2xl shadow-emerald-500/30 active:scale-95 transition-all cursor-pointer"
+            title="Próxima música do setlist"
           >
-            <span className="hidden xs:inline">Próxima</span>
+            <span>PRÓXIMA</span>
             <span>▶</span>
           </button>
-        </footer>
+        )}
       </div>
     );
   }

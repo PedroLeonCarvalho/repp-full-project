@@ -204,8 +204,8 @@ function ContractorFormModal({
               {isSubmitting
                 ? "Salvando..."
                 : initialData
-                ? "Salvar Alterações"
-                : "Cadastrar Contratante"}
+                  ? "Salvar Alterações"
+                  : "Cadastrar Contratante"}
             </button>
           </div>
         </form>
