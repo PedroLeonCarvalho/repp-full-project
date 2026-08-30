@@ -143,9 +143,10 @@ export function PublicSharedSetlistView({
           <button
             type="button"
             onClick={() => setIsRegisterModalOpen(true)}
-            className="rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black px-3.5 py-1.5 text-xs transition-all shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer"
+            className="rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black px-3.5 py-1.5 text-xs transition-all shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer flex items-center gap-1.5"
           >
-            Salvar no meu REPP
+            <span>📥</span>
+            <span>Importar repertório para meu REPP</span>
           </button>
         </div>
       </header>
@@ -314,8 +315,9 @@ export function PublicSharedSetlistView({
       {/* Conversion / Register Modal */}
       {isRegisterModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative w-full max-w-md rounded-3xl bg-zinc-900 border border-zinc-800 p-6 text-zinc-100 shadow-2xl space-y-5">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+          <div className="relative w-full max-w-lg rounded-3xl bg-zinc-900 border border-zinc-800 p-6 text-zinc-100 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3 shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="relative flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden shadow-sm border border-zinc-700/60 bg-zinc-900 shrink-0">
                   <Image
@@ -327,11 +329,16 @@ export function PublicSharedSetlistView({
                   />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-zinc-50">
-                    Crie sua conta no REPP
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-zinc-50">
+                      Conheça o REPP
+                    </h3>
+                    <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                      Em desenvolvimento
+                    </span>
+                  </div>
                   <p className="text-xs text-zinc-400">
-                    Gerencie repertórios, letras e shows
+                    Gestão centralizada de repertórios, letras e apresentações
                   </p>
                 </div>
               </div>
@@ -344,33 +351,97 @@ export function PublicSharedSetlistView({
               </button>
             </div>
 
-            <div className="space-y-2 text-xs sm:text-sm text-zinc-300 leading-relaxed">
-              <p>
-                Com o <strong>REPP</strong>, você organiza o repertório da sua banda, cria setlists instantâneos e usa o leitor de letras sem distrações direto no palco.
+            {/* Scrollable Content */}
+            <div className="space-y-4 overflow-y-auto pr-1 text-xs sm:text-sm text-zinc-300 leading-relaxed">
+              <p className="text-xs text-zinc-300">
+                O <strong>REPP</strong> foi criado para simplificar a vida do músico no palco e nos ensaios. Esta versão já permite uma gestão completa das suas apresentações e repertório:
               </p>
-              <div className="rounded-2xl bg-zinc-950 border border-zinc-800 p-3.5 space-y-1.5 text-xs text-zinc-400">
-                <p className="font-semibold text-emerald-400 flex items-center gap-1.5">
-                  <span>✨</span> O que você ganha:
+
+              {/* Current Features Card */}
+              <div className="rounded-2xl bg-zinc-950/80 border border-zinc-800/90 p-4 space-y-2">
+                <p className="font-bold text-emerald-400 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <span>⚡</span> Disponível nesta versão:
                 </p>
-                <p>• Acesso a todas as músicas e letras deste show</p>
-                <p>• Ajuste de tom para o seu instrumento</p>
-                <p>• Seus próprios projetos e apresentações</p>
+                <ul className="space-y-1.5 text-xs text-zinc-300">
+                  <li className="flex items-start gap-2">
+                    <span className="text-emerald-400 font-bold">✓</span>
+                    <span><strong>Músicas com Letra Automática:</strong> Cadastro de músicas com busca automática de letras.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-emerald-400 font-bold">✓</span>
+                    <span><strong>Contratantes e Músicos:</strong> Cadastro de contratantes e gestão da equipe de músicos parceiros.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-emerald-400 font-bold">✓</span>
+                    <span><strong>Apresentações & Setlists:</strong> Criação de shows, setlists com arrastar-e-soltar e modo palco imersivo.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-emerald-400 font-bold">✓</span>
+                    <span><strong>Contratos Padronizados:</strong> Geração de contrato simples e padronizado em PDF pronto para envio.</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Roadmap / Coming Soon Card */}
+              <div className="rounded-2xl bg-gradient-to-br from-emerald-950/20 to-zinc-950 border border-emerald-500/20 p-4 space-y-2">
+                <p className="font-bold text-zinc-100 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <span>🚀</span> Em desenvolvimento (em breve):
+                </p>
+                <ul className="space-y-1.5 text-xs text-zinc-400">
+                  <li className="flex items-start gap-2">
+                    <span className="text-emerald-400">✦</span>
+                    <span><strong>Partituras e Cifras:</strong> Inclusão de partituras e cifras na música, além de integração com o <em>iReal Pro</em>.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-emerald-400">✦</span>
+                    <span><strong>Colaboração em Tempo Real:</strong> Compartilhamento em tempo real para montar o repertório junto com toda a banda.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-emerald-400">✦</span>
+                    <span><strong>Rede de Músicos:</strong> Uma comunidade de músicos conectados através de repertórios e afinidades musicais em comum.</span>
+                  </li>
+                </ul>
+              </div>
+              {/* Private Beta Notice */}
+              <div className="rounded-2xl bg-amber-950/30 border border-amber-800/60 p-3.5 text-xs text-amber-200/90 space-y-1">
+                <p className="font-semibold text-amber-400 flex items-center gap-1.5">
+                  <span>🔒</span> Acesso Antecipado Fechado
+                </p>
+                <p className="leading-relaxed">
+                  O REPP ainda está em desenvolvimento restrito e <strong>não está aberto para cadastros públicos no momento</strong>. A funcionalidade de importar este repertório diretamente para sua conta estará disponível no lançamento oficial.
+                </p>
               </div>
             </div>
 
-            <div className="space-y-2.5 pt-2">
-              <Link
-                href="/register"
-                className="w-full flex items-center justify-center rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black px-4 py-3 text-xs sm:text-sm transition-all shadow-lg shadow-emerald-500/20 active:scale-[0.99]"
+            {/* Actions (Registration disabled for now) */}
+            <div className="space-y-2.5 pt-2 border-t border-zinc-800 shrink-0">
+              {/* Disabled Register Button */}
+              <button
+                type="button"
+                disabled
+                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-zinc-800/60 border border-zinc-700/40 text-zinc-500 font-bold px-4 py-3 text-xs sm:text-sm cursor-not-allowed select-none"
+                title="Cadastros públicos temporariamente indisponíveis"
               >
-                Criar Conta Grátis
-              </Link>
-              <Link
-                href="/login"
-                className="w-full flex items-center justify-center rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold px-4 py-2.5 text-xs transition-colors"
-              >
-                Já tenho conta (Fazer Login)
-              </Link>
+                <span>🔒</span>
+                <span>Cadastrar-se (Em breve)</span>
+              </button>
+
+              <div className="flex items-center justify-between px-1">
+                <Link
+                  href="/login"
+                  className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+                >
+                  Já é um testador convidado? <strong className="text-zinc-200 underline">Fazer Login</strong>
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={() => setIsRegisterModalOpen(false)}
+                  className="text-xs font-semibold text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
           </div>
         </div>
