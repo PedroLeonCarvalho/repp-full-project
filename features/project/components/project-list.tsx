@@ -1,8 +1,112 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { ProjectWithMusics } from "../types";
 import type { ConcertWithSetlist } from "@/features/concert/types";
+
+function getConcertTimestamp(concert: {
+  presentationDate: Date | string;
+  startTime?: string | null;
+}): number {
+  const dateObj = new Date(concert.presentationDate);
+  let year = dateObj.getFullYear();
+  let month = dateObj.getMonth();
+  let day = dateObj.getDate();
+
+  if (typeof concert.presentationDate === "string" && concert.presentationDate.includes("-")) {
+    const datePart = concert.presentationDate.split("T")[0];
+    const [y, m, d] = datePart.split("-").map(Number);
+    if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+      year = y;
+      month = m - 1;
+      day = d;
+    }
+  }
+
+  let hour = 12;
+  let minute = 0;
+  if (concert.startTime) {
+    const [h, m] = concert.startTime.split(":").map(Number);
+    if (!isNaN(h) && !isNaN(m)) {
+      hour = h;
+      minute = m;
+    }
+  }
+
+  return new Date(year, month, day, hour, minute).getTime();
+}
+
+function isConcertPassed(
+  concert: {
+    presentationDate: Date | string;
+    startTime?: string | null;
+    finishTime?: string | null;
+    durationInHours?: number | string | null;
+  },
+  nowTimestamp: number
+): boolean {
+  const dateObj = new Date(concert.presentationDate);
+  let year = dateObj.getFullYear();
+  let month = dateObj.getMonth();
+  let day = dateObj.getDate();
+
+  if (typeof concert.presentationDate === "string" && concert.presentationDate.includes("-")) {
+    const datePart = concert.presentationDate.split("T")[0];
+    const [y, m, d] = datePart.split("-").map(Number);
+    if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+      year = y;
+      month = m - 1;
+      day = d;
+    }
+  }
+
+  let endHour = 23;
+  let endMinute = 59;
+
+  if (concert.finishTime) {
+    const [h, m] = concert.finishTime.split(":").map(Number);
+    if (!isNaN(h) && !isNaN(m)) {
+      endHour = h;
+      endMinute = m;
+    }
+  } else if (concert.startTime) {
+    const [h, m] = concert.startTime.split(":").map(Number);
+    if (!isNaN(h) && !isNaN(m)) {
+      const dur = concert.durationInHours ? Number(concert.durationInHours) : 2;
+      endHour = h + Math.floor(dur);
+      endMinute = m + Math.round((dur % 1) * 60);
+    }
+  }
+
+  const concertEnd = new Date(year, month, day, endHour, endMinute, 59, 999);
+  return concertEnd.getTime() < nowTimestamp;
+}
+
+function getProjectClosestConcertDistance(
+  concerts: ConcertWithSetlist[] | undefined,
+  nowTimestamp: number
+): { minDistance: number; hasUpcoming: boolean } {
+  if (!concerts || concerts.length === 0) {
+    return { minDistance: Infinity, hasUpcoming: false };
+  }
+
+  let minDistance = Infinity;
+  let hasUpcoming = false;
+
+  for (const concert of concerts) {
+    const ts = getConcertTimestamp(concert);
+    const passed = isConcertPassed(concert, nowTimestamp);
+    if (!passed) {
+      hasUpcoming = true;
+    }
+    const dist = Math.abs(ts - nowTimestamp);
+    if (dist < minDistance) {
+      minDistance = dist;
+    }
+  }
+
+  return { minDistance, hasUpcoming };
+}
 
 interface ProjectListProps {
   projects: ProjectWithMusics[];
@@ -22,28 +126,6 @@ interface ProjectListProps {
   onDeleteConcert: (concertId: string) => void;
 }
 
-const PAYMENT_STATUS_CONFIG: Record<
-  string,
-  { label: string; badgeClass: string }
-> = {
-  PENDING: {
-    label: "Pendente",
-    badgeClass: "bg-amber-950/80 border-amber-800/80 text-amber-300",
-  },
-  PARTIALLY_PAID: {
-    label: "Parc. Pago",
-    badgeClass: "bg-sky-950/80 border-sky-800/80 text-sky-300",
-  },
-  PAID: {
-    label: "Pago",
-    badgeClass: "bg-emerald-950/80 border-emerald-800/80 text-emerald-300",
-  },
-  CANCELLED: {
-    label: "Cancelado",
-    badgeClass: "bg-zinc-800 border-zinc-700 text-zinc-400",
-  },
-};
-
 export function ProjectList({
   projects,
   expandedIds,
@@ -62,6 +144,31 @@ export function ProjectList({
   onDeleteConcert,
 }: ProjectListProps) {
   const [openMenuProjectId, setOpenMenuProjectId] = useState<string | null>(null);
+  const [now] = useState(() => Date.now());
+
+  // Sort projects by which has the concert with presentation date closer to current date
+  const sortedProjects = useMemo(() => {
+    return [...projects].sort((a, b) => {
+      const concertsA = projectConcertsMap[a.id] || [];
+      const concertsB = projectConcertsMap[b.id] || [];
+
+      const distA = getProjectClosestConcertDistance(concertsA, now);
+      const distB = getProjectClosestConcertDistance(concertsB, now);
+
+      // Projects with concert closer to current date first
+      if (distA.minDistance !== distB.minDistance) {
+        return distA.minDistance - distB.minDistance;
+      }
+
+      // Tiebreaker: upcoming concert takes precedence over already-passed concert
+      if (distA.hasUpcoming !== distB.hasUpcoming) {
+        return distA.hasUpcoming ? -1 : 1;
+      }
+
+      // Alphabetical order
+      return a.name.localeCompare(b.name);
+    });
+  }, [projects, projectConcertsMap, now]);
 
   if (projects.length === 0) {
     return (
@@ -115,7 +222,7 @@ export function ProjectList({
 
       {/* Accordion Projects List */}
       <div className="flex flex-col gap-3">
-        {projects.map((project) => {
+        {sortedProjects.map((project) => {
           const isExpanded = expandedIds.has(project.id);
           const isMenuOpen = openMenuProjectId === project.id;
           const concerts = projectConcertsMap[project.id] || [];
@@ -255,58 +362,64 @@ export function ProjectList({
                     </div>
                   ) : (
                     <div className="flex flex-col gap-2.5">
-                      {concerts.map((concert) => {
-                        const statusConfig =
-                          PAYMENT_STATUS_CONFIG[concert.paymentStatus] ||
-                          PAYMENT_STATUS_CONFIG.PENDING;
+                      {[...concerts]
+                        .sort((a, b) => getConcertTimestamp(a) - getConcertTimestamp(b))
+                        .map((concert) => {
+                          const isPassed = isConcertPassed(concert, now);
+                          const dateStr = new Date(
+                            concert.presentationDate
+                          ).toLocaleDateString("pt-BR", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                          });
 
-                        const dateStr = new Date(
-                          concert.presentationDate
-                        ).toLocaleDateString("pt-BR", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                        });
-
-                        return (
-                          <div
-                            key={concert.id}
-                            className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl border border-zinc-800/60 bg-zinc-900/80 hover:border-zinc-700/80 transition-all gap-3"
-                          >
+                          return (
                             <div
-                              onClick={() => onOpenConcertDetail(concert.id)}
-                              className="flex-1 min-w-0 cursor-pointer"
+                              key={concert.id}
+                              className={`flex flex-col sm:flex-row sm:items-center justify-between p-2.5 sm:p-3 rounded-xl border transition-all gap-2 ${
+                                isPassed
+                                  ? "border-zinc-800/40 bg-zinc-950/40 opacity-70"
+                                  : "border-zinc-800/60 bg-zinc-900/80 hover:border-zinc-700/80"
+                              }`}
                             >
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-semibold text-xs sm:text-sm text-zinc-100 hover:text-emerald-400 transition-colors truncate">
-                                  {concert.title}
-                                </span>
-                                <span
-                                  className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${statusConfig.badgeClass}`}
+                              <div
+                                onClick={() => onOpenConcertDetail(concert.id)}
+                                className="flex-1 min-w-0 cursor-pointer"
+                              >
+                                {/* Line 1: Concert Title */}
+                                <div
+                                  className={`font-semibold text-xs sm:text-sm truncate transition-colors ${
+                                    isPassed
+                                      ? "line-through text-zinc-500 hover:text-zinc-400"
+                                      : "text-zinc-100 hover:text-emerald-400"
+                                  }`}
+                                  title={
+                                    isPassed
+                                      ? `${concert.title} (Show já realizado)`
+                                      : concert.title
+                                  }
                                 >
-                                  {statusConfig.label}
-                                </span>
-                              </div>
+                                  {concert.title}
+                                </div>
 
-                              <div className="flex items-center gap-3 mt-1 text-xs text-zinc-400 flex-wrap">
-                                <span>📅 {dateStr}</span>
-                                {concert.startTime && <span>⏰ {concert.startTime}</span>}
-                                {concert.location && (
-                                  <span className="truncate max-w-[200px]">
-                                    📍 {concert.location}
-                                  </span>
-                                )}
-                                {concert.agreedFee !== null && (
-                                  <span className="text-emerald-400 font-medium">
-                                    💰 R$ {concert.agreedFee.toFixed(2)}
-                                  </span>
-                                )}
-                                <span className="text-zinc-500 font-medium">
-                                  🎵 {concert.setlistCount}{" "}
-                                  {concert.setlistCount === 1 ? "música" : "músicas"}
-                                </span>
+                                {/* Line 2: Date & Hour */}
+                                <div
+                                  className={`flex items-center gap-2 mt-0.5 text-xs ${
+                                    isPassed
+                                      ? "line-through text-zinc-600"
+                                      : "text-zinc-400"
+                                  }`}
+                                >
+                                  <span>📅 {dateStr}</span>
+                                  {concert.startTime && (
+                                    <>
+                                      <span className="text-zinc-600">•</span>
+                                      <span>⏰ {concert.startTime}</span>
+                                    </>
+                                  )}
+                                </div>
                               </div>
-                            </div>
 
                             {/* Concert Action Buttons */}
                             <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center flex-wrap">
@@ -324,10 +437,10 @@ export function ProjectList({
                                 type="button"
                                 onClick={() => onOpenConcertSetlist(concert.id)}
                                 className="rounded-lg bg-emerald-500/15 border border-emerald-500/40 px-2.5 py-1 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/25 transition-colors cursor-pointer inline-flex items-center gap-1"
-                                title="Abrir setlist e letras em tela cheia no palco"
+                                title="Iniciar apresentação ao vivo com setlist e letras"
                               >
-                                <span>🎵</span>
-                                <span>Ver Setlist</span>
+                                <span>▶</span>
+                                <span>Iniciar show</span>
                               </button>
 
                               <button
@@ -353,13 +466,13 @@ export function ProjectList({
                                 onClick={() => {
                                   if (
                                     confirm(
-                                      `Deseja realmente excluir o show "${concert.title}"?`
+                                      `Tem certeza de que deseja excluir o show "${concert.title}"?`
                                     )
                                   ) {
                                     onDeleteConcert(concert.id);
                                   }
                                 }}
-                                className="rounded-lg p-1 text-zinc-500 hover:text-red-400 hover:bg-red-950/30 transition-colors cursor-pointer"
+                                className="rounded-lg p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-950/30 transition-colors cursor-pointer"
                                 title="Excluir apresentação"
                               >
                                 🗑️

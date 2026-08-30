@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { concerts } from "@/db/schema/concerts";
 import { setlistItems } from "@/db/schema/setlist-items";
@@ -360,7 +360,7 @@ export async function listConcertsByProject(
     .leftJoin(setlistItems, eq(setlistItems.concertId, concerts.id))
     .where(and(eq(concerts.projectId, projectId), eq(concerts.customerId, customerId)))
     .groupBy(concerts.id, contractors.contactPersonName)
-    .orderBy(desc(concerts.presentationDate));
+    .orderBy(asc(concerts.presentationDate), asc(concerts.startTime));
 
   return allConcerts.map(({ concert, contractorName, setlistCount }) => ({
     ...mapConcert(concert),

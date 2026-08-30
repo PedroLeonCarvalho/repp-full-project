@@ -53,7 +53,7 @@ For significant features:
 5. Run lint.
 6. Run build.
 7. Run relevant tests.
-8. Summarize changed files and important technical decisions.
+8. Summarize changed files and important technical decisions following the final report structure: ~20% in lay/functional language, and ~80% in a deep technical format tailored for a Java Backend (Spring Boot) developer learning TypeScript/Next.js (making explicit parallels to Java/Spring concepts).
 
 Avoid unnecessary abstractions and premature complexity.
 

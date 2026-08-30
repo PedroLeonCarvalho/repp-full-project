@@ -72,10 +72,7 @@ export function ProjectView() {
     const res = await listProjectsAction();
     if (res.success) {
       setProjects(res.data);
-      // Refresh concerts for all currently expanded projects
-      for (const p of res.data) {
-        void loadConcertsForProject(p.id);
-      }
+      await Promise.all(res.data.map((p) => loadConcertsForProject(p.id)));
     } else {
       setFeedbackMessage({ type: "error", text: res.error });
     }
@@ -90,10 +87,7 @@ export function ProjectView() {
       if (!isCancelled) {
         if (res.success) {
           setProjects(res.data);
-          // Load concerts for all projects
-          for (const p of res.data) {
-            void loadConcertsForProject(p.id);
-          }
+          await Promise.all(res.data.map((p) => loadConcertsForProject(p.id)));
         } else {
           setFeedbackMessage({ type: "error", text: res.error });
         }
