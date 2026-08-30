@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import type { PublicSharedConcert, PublicSharedSetlistItem } from "@/features/concert/types";
 import { LyricsViewer } from "@/features/concert/components/lyrics-viewer";
@@ -119,9 +120,16 @@ export function PublicSharedSetlistView({
       <header className="sticky top-0 z-20 border-b border-zinc-800/80 bg-zinc-900/90 backdrop-blur-md px-4 sm:px-8 py-3">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500 text-zinc-950 font-black text-sm">
-              R
-            </span>
+            <div className="relative flex h-8 w-8 items-center justify-center rounded-xl overflow-hidden shadow-sm border border-zinc-700/60 bg-zinc-900 shrink-0">
+              <Image
+                src="/logo.svg"
+                alt="REPP Logo"
+                width={32}
+                height={32}
+                className="object-cover h-full w-full"
+                priority
+              />
+            </div>
             <div>
               <span className="text-xs font-bold text-zinc-200 block leading-tight">
                 REPP
@@ -309,9 +317,15 @@ export function PublicSharedSetlistView({
           <div className="relative w-full max-w-md rounded-3xl bg-zinc-900 border border-zinc-800 p-6 text-zinc-100 shadow-2xl space-y-5">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
               <div className="flex items-center gap-2.5">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500 text-zinc-950 font-black text-base">
-                  R
-                </span>
+                <div className="relative flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden shadow-sm border border-zinc-700/60 bg-zinc-900 shrink-0">
+                  <Image
+                    src="/logo.svg"
+                    alt="REPP Logo"
+                    width={36}
+                    height={36}
+                    className="object-cover h-full w-full"
+                  />
+                </div>
                 <div>
                   <h3 className="text-base font-bold text-zinc-50">
                     Crie sua conta no REPP

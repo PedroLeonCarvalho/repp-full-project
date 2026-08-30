@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { getAuthenticatedCustomer } from "@/features/auth/services/auth-service";
 import { logoutAction } from "@/features/auth/actions/auth-actions";
 import { MainDashboard } from "@/components/main-dashboard";
@@ -11,8 +12,15 @@ export default async function Home() {
       <header className="sticky top-0 z-40 border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-lg">
         <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500 text-zinc-950 font-black text-sm tracking-tighter">
-              R
+            <div className="relative flex h-8 w-8 items-center justify-center rounded-xl overflow-hidden shadow-sm border border-zinc-700/60 bg-zinc-900">
+              <Image
+                src="/logo.svg"
+                alt="REPP Logo"
+                width={32}
+                height={32}
+                className="object-cover h-full w-full"
+                priority
+              />
             </div>
             <span className="font-extrabold text-base text-zinc-50 tracking-wider">
               REPP

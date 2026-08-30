@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { loginAction } from "../actions/auth-actions";
@@ -35,8 +36,15 @@ export function LoginForm() {
     <div className="w-full max-w-md rounded-3xl bg-zinc-900/90 border border-zinc-800 p-6 sm:p-8 text-zinc-100 shadow-2xl backdrop-blur-xl">
       {/* Brand & Title */}
       <div className="text-center mb-6">
-        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500 text-zinc-950 font-black text-xl tracking-tighter shadow-lg shadow-emerald-500/20">
-          R
+        <div className="mx-auto mb-3 relative flex h-14 w-14 items-center justify-center rounded-2xl overflow-hidden border border-zinc-700/60 bg-zinc-900 shadow-lg shadow-emerald-500/10">
+          <Image
+            src="/logo.svg"
+            alt="REPP Logo"
+            width={56}
+            height={56}
+            className="object-cover h-full w-full"
+            priority
+          />
         </div>
         <h1 className="text-2xl font-bold text-zinc-50 tracking-tight">
           Entrar no REPP

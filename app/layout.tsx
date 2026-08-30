@@ -16,6 +16,10 @@ export const metadata: Metadata = {
   title: "REPP — Gestão de Repertório & Shows",
   description:
     "Administração centralizada de repertórios musicais, projetos artísticos, setlists, contratos e apresentações para músicos e cantores.",
+  icons: {
+    icon: "/logo.svg",
+    apple: "/logo.svg",
+  },
 };
 
 export const viewport: Viewport = {
