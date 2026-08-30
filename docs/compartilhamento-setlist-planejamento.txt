@@ -1,0 +1,108 @@
+================================================================================
+REPP — PLANEJAMENTO ARQUITETURAL: COMPARTILHAMENTO DE SETLIST E EVOLUÇÃO FUTURA
+================================================================================
+Data do documento: 30 de agosto de 2026
+Autor / Projeto: REPP (Repertório e Apresentações)
+
+--------------------------------------------------------------------------------
+1. O QUE ESTAMOS IMPLEMENTANDO AGORA (FASE 1 — COMENTÁRIO E ESPECIFICAÇÃO)
+--------------------------------------------------------------------------------
+
+OBJETIVO:
+Permitir que o proprietário de uma apresentação (líder da banda / organizador)
+compartilhe o setlist com os músicos da banda através de um link público e seguro,
+sem fricção de login para visualização e com total preservação da privacidade.
+
+ARQUITETURA DA FASE ATUAL:
+Padrão "Capability URL com Projeção Sanitizada (DTO)" + "Cópia Pessoal / Fork".
+
+1. BANCO DE DADOS (PostgreSQL / Drizzle ORM):
+   - Adição de colunas na tabela 'concerts':
+     * share_token (text, unique, nullable): Token criptográfico aleatório que compõe a URL.
+     * is_share_enabled (boolean, default false): Flag "kill-switch" para revogação rápida.
+     * original_concert_id (uuid, nullable, references concerts.id): Rastreabilidade do show
+       original quando outro músico copiar o repertório para a conta dele.
+
+2. DTO SANITIZADO (O que é exposto e o que é protegido):
+   - INFORMAÇÕES EXPOSTAS NO LINK PÚBLICO:
+     * Título da apresentação e nome do projeto.
+     * Data e horário de início / término.
+     * Local e endereço descritivo + Link clicável direto para o Google Maps.
+     * Observações gerais da apresentação.
+     * Lista ordenada de músicas (setlist): título, artista, tom da música (key),
+       anotações da faixa e letra/cifra completa no modo imersivo de palco.
+   - INFORMAÇÕES RIGOROSAMENTE BLINDADAS (NUNCA expostas):
+     * Cachê acordado (agreed_fee) e custos de deslocamento (travel_cost).
+     * Dados do contratante (nome, telefone, e-mail, observações financeiras).
+     * Identificadores internos do usuário/cliente (customer_id).
+
+3. EXPERIÊNCIA DO USUÁRIO (UX):
+   - Dono da apresentação:
+     * Clica em "Compartilhar" na apresentação.
+     * O link é gerado na hora sem burocracia, com botões para "Copiar Link"
+       e "Enviar no WhatsApp da Banda".
+     * Pode desativar o link a qualquer momento.
+   - Músico que recebe o link:
+     * Acessa a rota pública /s/[share_token] no smartphone ou tablet.
+     * Visualiza a lista de músicas e abre o modo de leitura de letras/cifras
+       em tela cheia (com navegação "PRÓXIMA" e layout otimizado para o palco).
+     * O link é SOMENTE LEITURA — não altera os dados do show do líder.
+     * Banner superior: "Gostou deste setlist? Salve este repertório no REPP".
+     * Ao clicar para salvar/copiar, se não estiver logado, abre modal para cadastro.
+     * Ao criar a conta ou logar, uma cópia completa da apresentação é gerada para
+       o novo usuário (associando 'original_concert_id' ao show de origem).
+
+--------------------------------------------------------------------------------
+2. PLANO FUTURO: EVOLUÇÃO PARA O ESTILO "WORKSPACE / BANDA COLABORATIVA" (FASE 2)
+--------------------------------------------------------------------------------
+
+VISÃO:
+Permitir que múltiplos músicos trabalhem na MESMA apresentação em tempo real,
+no estilo workspace (Google Docs / Notion / Figma), onde alterações de ordem,
+tons ou novas músicas são compartilhadas instantaneamente entre os integrantes.
+
+COMO AS DECISÕES DA FASE 1 GARANTEM ESSA TRANSIÇÃO SEM RETRABALHO:
+
+1. TABELA ASSOCIATIVA ADITIVA (Sem quebrar a tabela atual):
+   No futuro, não será necessário migrar ou quebrar a tabela 'concerts'.
+   Basta introduzir uma tabela de colaboradores:
+   
+   CREATE TABLE concert_collaborators (
+       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+       concert_id UUID NOT NULL REFERENCES concerts(id) ON DELETE CASCADE,
+       customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+       role TEXT NOT NULL DEFAULT 'VIEWER', -- 'ADMIN', 'EDITOR', 'VIEWER'
+       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+       UNIQUE(concert_id, customer_id)
+   );
+
+2. POLÍTICA DE CONTROLE DE ACESSO CENTRALIZADA (Policy / Service Layer):
+   - Na Fase 1, o código usa funções centralizadas de assert:
+     assertCanEditConcert(concertId, customerId)
+   - Na Fase 2 (Workspace), apenas o interior dessa função mudará para:
+     "É o dono (concerts.customer_id = id) OU possui role 'EDITOR'/'ADMIN'
+      na tabela concert_collaborators?".
+   - Nenhuma tela, Server Action ou rota precisará ser reescrita do zero.
+
+3. CONVERGÊNCIA COM 'original_concert_id':
+   - Graças à coluna 'original_concert_id' implementada na Fase 1, se um músico
+     que já possuía uma cópia pessoal for formalmente convidado para a banda do líder,
+     o sistema poderá identificar a relação de parentesco entre os dois shows e
+     oferecer a opção de "Mesclar alterações" ou "Migrar para o show oficial da banda".
+
+4. CONCORRÊNCIA E TEMPO REAL:
+   - Utilização de Optimistic Locking (coluna 'version' com lock otimista) para
+     evitar que dois músicos no palco substituam a mesma música simultaneamente.
+   - Atualizações reativas via WebSockets ou Server-Sent Events (SSE) para refletir
+     mudanças de tom ou ordem na tela de todos os integrantes durante o ensaio/show.
+
+--------------------------------------------------------------------------------
+RESUMO DAS VANTAGENS DESTA ABORDAGEM:
+--------------------------------------------------------------------------------
+1. Valor Imediato: Resolve a dor do palco já na primeira versão (link rápido e seguro).
+2. Crescimento Orgânico (PLG): Transforma cada link de WhatsApp em porta de entrada
+   para novos cadastros no REPP.
+3. Segurança & LGPD: Cachês e contratos permanecem estritamente confidenciais.
+4. Longevidade do Código: Arquitetura 100% expansível para o modelo Workspace,
+   sem desperdício de código ou necessidade de refatorações traumáticas.
+================================================================================

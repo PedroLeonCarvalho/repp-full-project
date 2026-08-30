@@ -20,6 +20,9 @@ export interface Concert {
   travelCost: number | null;
   paymentStatus: PaymentStatus;
   note: string | null;
+  shareToken?: string | null;
+  isShareEnabled: boolean;
+  originalConcertId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,6 +35,38 @@ export interface SetlistItem {
   note: string | null;
   createdAt: Date;
   music?: Music;
+}
+
+export interface PublicSharedMusic {
+  id: string;
+  title: string;
+  artist: string;
+  preferredKey: string | null;
+  originalKey: string | null;
+  lyrics: string | null;
+  spotifyLink: string | null;
+}
+
+export interface PublicSharedSetlistItem {
+  id: string;
+  position: number;
+  note: string | null;
+  music: PublicSharedMusic;
+}
+
+export interface PublicSharedConcert {
+  id: string;
+  title: string;
+  projectName: string;
+  location: string | null;
+  presentationDate: Date | string;
+  startTime: string | null;
+  finishTime: string | null;
+  durationInHours: number | null;
+  totalBreakTime: number | null;
+  note: string | null;
+  setlist: PublicSharedSetlistItem[];
+  setlistCount: number;
 }
 
 export interface ConcertWithSetlist extends Concert {

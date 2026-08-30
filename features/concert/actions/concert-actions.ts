@@ -6,8 +6,11 @@ import {
   addMusicsToSetlist,
   createConcert,
   deleteConcert,
+  disableConcertShare,
   duplicateConcert,
+  enableConcertShare,
   getConcertById,
+  getSharedConcertByToken,
   listConcertsByProject,
   removeSetlistItem,
   reorderSetlist,
@@ -18,6 +21,7 @@ import type {
   Concert,
   ConcertWithSetlist,
   CreateConcertInput,
+  PublicSharedConcert,
   UpdateConcertInput,
 } from "../types";
 
@@ -189,5 +193,60 @@ export async function reorderSetlistAction(
       return { success: false, error: err.message };
     }
     return { success: false, error: "Erro inesperado ao reordenar setlist." };
+  }
+}
+
+export async function enableConcertShareAction(
+  concertId: string
+): Promise<ActionResult<{ shareToken: string; isShareEnabled: boolean }>> {
+  try {
+    const customerId = await requireAuthCustomerId();
+    const res = await enableConcertShare(concertId, customerId);
+    revalidatePath("/");
+    return { success: true, data: res };
+  } catch (err) {
+    if (err instanceof ConcertServiceError) {
+      return { success: false, error: err.message };
+    }
+    if (err instanceof Error) {
+      return { success: false, error: err.message };
+    }
+    return { success: false, error: "Erro inesperado ao ativar compartilhamento." };
+  }
+}
+
+export async function disableConcertShareAction(
+  concertId: string
+): Promise<ActionResult<{ success: true }>> {
+  try {
+    const customerId = await requireAuthCustomerId();
+    const res = await disableConcertShare(concertId, customerId);
+    revalidatePath("/");
+    return { success: true, data: res };
+  } catch (err) {
+    if (err instanceof ConcertServiceError) {
+      return { success: false, error: err.message };
+    }
+    if (err instanceof Error) {
+      return { success: false, error: err.message };
+    }
+    return { success: false, error: "Erro inesperado ao desativar compartilhamento." };
+  }
+}
+
+export async function getSharedConcertAction(
+  token: string
+): Promise<ActionResult<PublicSharedConcert | null>> {
+  try {
+    const res = await getSharedConcertByToken(token);
+    return { success: true, data: res };
+  } catch (err) {
+    if (err instanceof ConcertServiceError) {
+      return { success: false, error: err.message };
+    }
+    if (err instanceof Error) {
+      return { success: false, error: err.message };
+    }
+    return { success: false, error: "Erro inesperado ao consultar apresentação compartilhada." };
   }
 }

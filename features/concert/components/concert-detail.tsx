@@ -13,6 +13,7 @@ import { AddToSetlistModal } from "./add-to-setlist-modal";
 import { ConcertPresentationMode } from "./concert-presentation-mode";
 import { ConcertMusiciansSection } from "@/features/musician/components/concert-musicians-section";
 import { ContractModal } from "@/features/contract/components/contract-modal";
+import { ShareSetlistModal } from "./share-setlist-modal";
 
 interface ConcertDetailProps {
   concertId: string;
@@ -34,6 +35,7 @@ export function ConcertDetail({
   const [isLoading, setIsLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [presentationStartIndex, setPresentationStartIndex] = useState<number | null>(
     null
   );
@@ -205,8 +207,17 @@ export function ConcertDetail({
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
-                onClick={() => setIsContractModalOpen(true)}
+                onClick={() => setIsShareModalOpen(true)}
                 className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-3 py-1.5 text-xs font-bold text-emerald-400 hover:bg-emerald-500/25 transition-all shadow-sm active:scale-95 cursor-pointer inline-flex items-center gap-1.5"
+                title="Compartilhar setlist com os músicos da banda"
+              >
+                <span>🔗</span>
+                <span className="hidden xs:inline">Compartilhar</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsContractModalOpen(true)}
+                className="rounded-xl bg-zinc-800 border border-zinc-700/80 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-700 transition-all shadow-sm active:scale-95 cursor-pointer inline-flex items-center gap-1.5"
                 title="Gerar ou visualizar contrato em PDF"
               >
                 <span>📄</span>
@@ -517,6 +528,17 @@ export function ConcertDetail({
           void refreshConcert();
         }}
       />
+
+      {/* Share Setlist Modal */}
+      {isShareModalOpen && (
+        <ShareSetlistModal
+          concert={concert}
+          onClose={() => setIsShareModalOpen(false)}
+          onUpdated={() => {
+            void refreshConcert();
+          }}
+        />
+      )}
     </div>
   );
 }

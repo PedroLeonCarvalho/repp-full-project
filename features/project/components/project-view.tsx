@@ -21,6 +21,7 @@ import { ProjectForm } from "./project-form";
 import { ConcertForm } from "@/features/concert/components/concert-form";
 import { ConcertDetail } from "@/features/concert/components/concert-detail";
 import { ConcertLiveSetlist } from "@/features/concert/components/concert-live-setlist";
+import { ShareSetlistModal } from "@/features/concert/components/share-setlist-modal";
 
 export function ProjectView() {
   const [projects, setProjects] = useState<ProjectWithMusics[]>([]);
@@ -52,6 +53,7 @@ export function ProjectView() {
   const [selectedConcertIdForSetlist, setSelectedConcertIdForSetlist] = useState<
     string | null
   >(null);
+  const [sharingConcert, setSharingConcert] = useState<ConcertWithSetlist | null>(null);
 
   const [feedbackMessage, setFeedbackMessage] = useState<{
     type: "success" | "error" | "info";
@@ -348,6 +350,7 @@ export function ProjectView() {
           onOpenConcertSetlist={(concertId) =>
             setSelectedConcertIdForSetlist(concertId)
           }
+          onShareConcert={(concert) => setSharingConcert(concert)}
           onDuplicateConcert={handleDuplicateConcert}
           onDeleteConcert={handleDeleteConcert}
         />
@@ -410,6 +413,17 @@ export function ProjectView() {
           concertId={selectedConcertIdForSetlist}
           onClose={() => {
             setSelectedConcertIdForSetlist(null);
+            void refreshProjects();
+          }}
+        />
+      )}
+
+      {/* Share Setlist Modal */}
+      {sharingConcert && (
+        <ShareSetlistModal
+          concert={sharingConcert}
+          onClose={() => setSharingConcert(null)}
+          onUpdated={() => {
             void refreshProjects();
           }}
         />

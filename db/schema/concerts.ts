@@ -1,4 +1,4 @@
-import { integer, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, integer, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { customers } from "./customers";
 import { projects } from "./projects";
 import { contractors } from "./contractors";
@@ -28,6 +28,9 @@ export const concerts = pgTable("concerts", {
   travelCost: numeric("travel_cost", { precision: 10, scale: 2 }),
   paymentStatus: paymentStatusEnum("payment_status").notNull().default("PENDING"),
   note: text("note"),
+  shareToken: text("share_token").unique(),
+  isShareEnabled: boolean("is_share_enabled").notNull().default(false),
+  originalConcertId: uuid("original_concert_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()

@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { concerts } from "@/db/schema/concerts";
@@ -11,6 +12,7 @@ import type {
   Concert,
   ConcertWithSetlist,
   CreateConcertInput,
+  PublicSharedConcert,
   UpdateConcertInput,
 } from "../types";
 import {
@@ -569,4 +571,152 @@ export async function reorderSetlist(
   }
 
   return { success: true };
+}
+
+/**
+ * Centralized authorization helper for concert editing operations.
+ * Designed to seamlessly support team/workspace roles in the future.
+ */
+export async function assertCanEditConcert(
+  concertId: string,
+  customerId: string
+) {
+  const [concert] = await db
+    .select()
+    .from(concerts)
+    .where(and(eq(concerts.id, concertId), eq(concerts.customerId, customerId)))
+    .limit(1);
+
+  if (!concert) {
+    throw new ConcertServiceError(
+      "Apresentação não encontrada ou você não tem permissão para editá-la.",
+      "NOT_FOUND"
+    );
+  }
+
+  return concert;
+}
+
+/**
+ * Generates (or reuses) a secure share token and activates public setlist sharing.
+ */
+export async function enableConcertShare(
+  concertId: string,
+  customerId: string
+): Promise<{ shareToken: string; isShareEnabled: boolean }> {
+  const concert = await assertCanEditConcert(concertId, customerId);
+
+  let token = concert.shareToken;
+  if (!token) {
+    token = randomBytes(16).toString("hex");
+  }
+
+  await db
+    .update(concerts)
+    .set({
+      shareToken: token,
+      isShareEnabled: true,
+    })
+    .where(eq(concerts.id, concertId));
+
+  return {
+    shareToken: token,
+    isShareEnabled: true,
+  };
+}
+
+/**
+ * Disables public setlist sharing for this concert.
+ */
+export async function disableConcertShare(
+  concertId: string,
+  customerId: string
+): Promise<{ success: true }> {
+  await assertCanEditConcert(concertId, customerId);
+
+  await db
+    .update(concerts)
+    .set({
+      isShareEnabled: false,
+    })
+    .where(eq(concerts.id, concertId));
+
+  return { success: true };
+}
+
+/**
+ * Retrieves a sanitized, read-only DTO of a concert for public viewing.
+ * Strictly excludes financial details (agreedFee, travelCost) and contractor contacts.
+ * Includes complete address description, presentation date, schedules, and full setlist with lyrics.
+ */
+export async function getSharedConcertByToken(
+  shareToken: string
+): Promise<PublicSharedConcert | null> {
+  if (!shareToken || !shareToken.trim()) {
+    return null;
+  }
+
+  const [found] = await db
+    .select({
+      concert: concerts,
+      projectName: projects.name,
+    })
+    .from(concerts)
+    .innerJoin(projects, eq(projects.id, concerts.projectId))
+    .where(
+      and(
+        eq(concerts.shareToken, shareToken),
+        eq(concerts.isShareEnabled, true)
+      )
+    )
+    .limit(1);
+
+  if (!found) {
+    return null;
+  }
+
+  const { concert, projectName } = found;
+
+  // Retrieve ordered setlist with music details
+  const items = await db
+    .select({
+      id: setlistItems.id,
+      position: setlistItems.position,
+      note: setlistItems.note,
+      music: musics,
+    })
+    .from(setlistItems)
+    .innerJoin(musics, eq(musics.id, setlistItems.musicId))
+    .where(eq(setlistItems.concertId, concert.id))
+    .orderBy(asc(setlistItems.position));
+
+  const sanitizedSetlist = items.map((item) => ({
+    id: item.id,
+    position: item.position,
+    note: item.note,
+    music: {
+      id: item.music.id,
+      title: item.music.title,
+      artist: item.music.artist,
+      preferredKey: item.music.preferredKey,
+      originalKey: item.music.originalKey,
+      lyrics: item.music.lyrics,
+      spotifyLink: item.music.spotifyLink,
+    },
+  }));
+
+  return {
+    id: concert.id,
+    title: concert.title,
+    projectName,
+    location: concert.location,
+    presentationDate: concert.presentationDate,
+    startTime: concert.startTime,
+    finishTime: concert.finishTime,
+    durationInHours: concert.durationInHours ? Number(concert.durationInHours) : null,
+    totalBreakTime: concert.totalBreakTime,
+    note: concert.note,
+    setlist: sanitizedSetlist,
+    setlistCount: sanitizedSetlist.length,
+  };
 }

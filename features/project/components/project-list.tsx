@@ -122,6 +122,7 @@ interface ProjectListProps {
   onOpenEditConcert: (concert: ConcertWithSetlist) => void;
   onOpenConcertDetail: (concertId: string) => void;
   onOpenConcertSetlist: (concertId: string) => void;
+  onShareConcert?: (concert: ConcertWithSetlist) => void;
   onDuplicateConcert: (concertId: string) => void;
   onDeleteConcert: (concertId: string) => void;
 }
@@ -140,6 +141,7 @@ export function ProjectList({
   onOpenEditConcert,
   onOpenConcertDetail,
   onOpenConcertSetlist,
+  onShareConcert,
   onDuplicateConcert,
   onDeleteConcert,
 }: ProjectListProps) {
@@ -442,6 +444,18 @@ export function ProjectList({
                                 <span>▶</span>
                                 <span>Iniciar show</span>
                               </button>
+
+                              {onShareConcert && (
+                                <button
+                                  type="button"
+                                  onClick={() => onShareConcert(concert)}
+                                  className="rounded-lg bg-zinc-800 border border-zinc-700/70 px-2.5 py-1 text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:bg-zinc-700 transition-colors cursor-pointer inline-flex items-center gap-1"
+                                  title="Compartilhar setlist da apresentação"
+                                >
+                                  <span>🔗</span>
+                                  <span>Compartilhar</span>
+                                </button>
+                              )}
 
                               <button
                                 type="button"

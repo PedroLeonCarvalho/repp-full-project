@@ -10,7 +10,7 @@ function getAuthSecretKey(): Uint8Array {
   return new TextEncoder().encode(secret);
 }
 
-const PUBLIC_PATHS = ["/login", "/register"];
+const PUBLIC_PATHS = ["/login", "/register", "/s"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -24,7 +24,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const isPublicPath = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
+  const isPublicPath = PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
   const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
 
   let isValidSession = false;
@@ -48,7 +48,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // If already authenticated and accessing login or register -> redirect to /
-  if (isValidSession && isPublicPath) {
+  if (isValidSession && (pathname.startsWith("/login") || pathname.startsWith("/register"))) {
     const homeUrl = new URL("/", request.url);
     return NextResponse.redirect(homeUrl);
   }
