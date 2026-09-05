@@ -173,7 +173,7 @@ export function MusicList({
                         className="inline-flex items-center rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[11px] font-bold text-emerald-300 shrink-0"
                         title={`Tonalidade: ${displayKey}`}
                       >
-                        Tom: {displayKey}
+                        {displayKey}
                       </span>
                     ) : (
                       <span

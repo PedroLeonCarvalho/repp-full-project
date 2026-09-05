@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { PublicSharedConcert, PublicSharedSetlistItem } from "@/features/concert/types";
@@ -15,6 +15,63 @@ export function PublicSharedSetlistView({
 }: PublicSharedSetlistViewProps) {
   const [activeLyricsIndex, setActiveLyricsIndex] = useState<number | null>(null);
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        if (document.documentElement.requestFullscreen) {
+          await document.documentElement.requestFullscreen();
+        } else if (
+          (
+            document.documentElement as unknown as {
+              webkitRequestFullscreen?: () => Promise<void>;
+            }
+          ).webkitRequestFullscreen
+        ) {
+          await (
+            document.documentElement as unknown as {
+              webkitRequestFullscreen: () => Promise<void>;
+            }
+          ).webkitRequestFullscreen();
+        }
+        setIsFullscreen(true);
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if (
+          (
+            document as unknown as {
+              webkitExitFullscreen?: () => Promise<void>;
+            }
+          ).webkitExitFullscreen
+        ) {
+          await (
+            document as unknown as {
+              webkitExitFullscreen: () => Promise<void>;
+            }
+          ).webkitExitFullscreen();
+        }
+        setIsFullscreen(false);
+      }
+    } catch {
+      // Ignore
+    }
+  };
 
   const formattedDate = new Date(concert.presentationDate).toLocaleDateString(
     "pt-BR",
@@ -45,8 +102,24 @@ export function PublicSharedSetlistView({
 
     return (
       <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950 text-zinc-50 overflow-hidden select-none animate-in fade-in duration-150">
-        {/* Floating Close Button at Top Right */}
-        <div className="fixed top-3 right-3 z-30">
+        {/* Floating Controls at Top Right */}
+        <div className="fixed top-3 right-3 z-30 flex items-center gap-2">
+          {/* Fullscreen Button */}
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold backdrop-blur-md shadow-lg transition-all cursor-pointer ${
+              isFullscreen
+                ? "bg-emerald-950/80 border-emerald-500/80 text-emerald-300 hover:bg-emerald-900/80"
+                : "bg-zinc-900/80 hover:bg-zinc-800/90 border-zinc-700/60 text-zinc-200 hover:text-white"
+            }`}
+            title={isFullscreen ? "Sair da tela cheia" : "Entrar em tela cheia"}
+          >
+            <span>⛶</span>
+            <span>{isFullscreen ? "Tela Cheia: ON" : "Tela Cheia"}</span>
+          </button>
+
+          {/* Close Button */}
           <button
             type="button"
             onClick={() => setActiveLyricsIndex(null)}
@@ -61,7 +134,7 @@ export function PublicSharedSetlistView({
         {/* Main Lyrics Area (Full Height, No Top or Bottom Bar) */}
         <main className="flex-1 overflow-y-auto px-4 sm:px-12 pt-4 pb-24 max-w-4xl mx-auto w-full">
           {/* In-flow Song Information Header */}
-          <div className="mb-4 pb-3 border-b border-zinc-800/70 flex items-center justify-between gap-3 pr-24">
+          <div className="mb-4 pb-3 border-b border-zinc-800/70 flex items-center justify-between gap-3 pr-44 sm:pr-52">
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-500 font-black text-zinc-950 text-xs shrink-0">
@@ -72,7 +145,7 @@ export function PublicSharedSetlistView({
                 </h1>
                 {keyDisplay && (
                   <span className="rounded-md bg-emerald-950 border border-emerald-500/70 px-2 py-0.5 font-mono font-bold text-xs text-emerald-400">
-                    Tom: {keyDisplay}
+                    {keyDisplay}
                   </span>
                 )}
               </div>

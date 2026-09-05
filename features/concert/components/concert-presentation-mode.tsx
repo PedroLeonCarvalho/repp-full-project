@@ -18,6 +18,7 @@ export function ConcertPresentationMode({
   onClose,
 }: ConcertPresentationModeProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const fontSize = "large" as const;
 
   const currentItem = setlist[currentIndex];
@@ -42,6 +43,13 @@ export function ConcertPresentationMode({
 
     void enterFullscreen();
 
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+
     // 2. Keep Screen Awake on mobile
     let wakeLockSentinel: { release: () => Promise<void> } | null = null;
     const requestWakeLock = async () => {
@@ -57,6 +65,8 @@ export function ConcertPresentationMode({
     void requestWakeLock();
 
     return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
       if (wakeLockSentinel) {
         void wakeLockSentinel.release();
       }
@@ -65,6 +75,48 @@ export function ConcertPresentationMode({
       }
     };
   }, []);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        if (document.documentElement.requestFullscreen) {
+          await document.documentElement.requestFullscreen();
+        } else if (
+          (
+            document.documentElement as unknown as {
+              webkitRequestFullscreen?: () => Promise<void>;
+            }
+          ).webkitRequestFullscreen
+        ) {
+          await (
+            document.documentElement as unknown as {
+              webkitRequestFullscreen: () => Promise<void>;
+            }
+          ).webkitRequestFullscreen();
+        }
+        setIsFullscreen(true);
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if (
+          (
+            document as unknown as {
+              webkitExitFullscreen?: () => Promise<void>;
+            }
+          ).webkitExitFullscreen
+        ) {
+          await (
+            document as unknown as {
+              webkitExitFullscreen: () => Promise<void>;
+            }
+          ).webkitExitFullscreen();
+        }
+        setIsFullscreen(false);
+      }
+    } catch {
+      // Ignore
+    }
+  };
 
   // Keyboard navigation: Left/Right arrows, Escape to exit
   useEffect(() => {
@@ -94,8 +146,24 @@ export function ConcertPresentationMode({
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black text-zinc-50 overflow-hidden select-none">
-      {/* Floating Close Button at Top Right */}
-      <div className="fixed top-3 right-3 z-30">
+      {/* Floating Controls at Top Right */}
+      <div className="fixed top-3 right-3 z-30 flex items-center gap-2">
+        {/* Fullscreen Button */}
+        <button
+          type="button"
+          onClick={toggleFullscreen}
+          className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold backdrop-blur-md shadow-lg transition-all cursor-pointer ${
+            isFullscreen
+              ? "bg-emerald-950/80 border-emerald-500/80 text-emerald-300 hover:bg-emerald-900/80"
+              : "bg-zinc-900/80 hover:bg-zinc-800/90 border-zinc-700/60 text-zinc-200 hover:text-white"
+          }`}
+          title={isFullscreen ? "Sair da tela cheia" : "Entrar em tela cheia"}
+        >
+          <span>⛶</span>
+          <span>{isFullscreen ? "Tela Cheia: ON" : "Tela Cheia"}</span>
+        </button>
+
+        {/* Close Button */}
         <button
           type="button"
           onClick={onClose}
@@ -110,7 +178,7 @@ export function ConcertPresentationMode({
       {/* Main Lyrics Reading Area (Full Height) */}
       <main className="flex-1 overflow-y-auto px-4 sm:px-12 pt-4 pb-24 max-w-4xl mx-auto w-full">
         {/* In-flow Song Information Header (scrolls with content) */}
-        <div className="mb-4 pb-3 border-b border-zinc-800/70 flex items-center justify-between gap-3 pr-24">
+        <div className="mb-4 pb-3 border-b border-zinc-800/70 flex items-center justify-between gap-3 pr-44 sm:pr-52">
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-500 font-black text-zinc-950 text-xs shrink-0">
@@ -121,7 +189,7 @@ export function ConcertPresentationMode({
               </h1>
               {keyDisplay && (
                 <span className="rounded-md bg-emerald-950 border border-emerald-500/70 px-2 py-0.5 font-mono font-bold text-xs text-emerald-400">
-                  Tom: {keyDisplay}
+                  {keyDisplay}
                 </span>
               )}
             </div>

@@ -53,7 +53,7 @@ export function MusicDetail({
               </h2>
               {music.preferredKey && (
                 <span className="inline-flex items-center rounded-lg bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 text-xs font-bold text-emerald-300">
-                  Tom Preferido: {music.preferredKey}
+                  {music.preferredKey}
                 </span>
               )}
             </div>
@@ -101,7 +101,7 @@ export function MusicDetail({
           <div className="flex flex-wrap items-center gap-2">
             {music.originalKey && (
               <span className="inline-flex items-center gap-1 rounded-lg bg-zinc-800 border border-zinc-700 px-2.5 py-1 text-xs text-zinc-300">
-                Tom Original: {music.originalKey}
+                {music.originalKey}
               </span>
             )}
             {music.genre && (
@@ -155,7 +155,7 @@ export function MusicDetail({
               </span>
               {music.preferredKey && (
                 <span className="text-xs font-mono font-bold text-emerald-400">
-                  Tom: {music.preferredKey}
+                  {music.preferredKey}
                 </span>
               )}
             </div>

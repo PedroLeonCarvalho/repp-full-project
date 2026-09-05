@@ -124,7 +124,7 @@ export function MusicFilters({
           <option value="">Tom preferido</option>
           {MUSICAL_KEYS.map((k) => (
             <option key={k} value={k}>
-              Tom: {k}
+              {k}
             </option>
           ))}
         </select>
@@ -143,7 +143,7 @@ export function MusicFilters({
           <option value="">Tom original</option>
           {MUSICAL_KEYS.map((k) => (
             <option key={k} value={k}>
-              Tom orig: {k}
+              {k}
             </option>
           ))}
         </select>

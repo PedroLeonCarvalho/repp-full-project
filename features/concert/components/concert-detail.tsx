@@ -404,7 +404,7 @@ export function ConcertDetail({
                           </span>
                           {keyDisplay && (
                             <span className="rounded bg-emerald-950/80 border border-emerald-800/80 px-1.5 py-0.5 text-[10px] font-mono font-bold text-emerald-400 shrink-0">
-                              Tom: {keyDisplay}
+                              {keyDisplay}
                             </span>
                           )}
                           {noteText && (

@@ -17,5 +17,4 @@ Ao desenvolver uma nova feature neste projeto:
 9. Execute build.
 10. Execute testes relevantes.
 11. Liste os arquivos alterados.
-12. No relatório final: estruture ~20% em linguagem funcional/leiga e ~80% de forma técnica aprofundada orientada a um desenvolvedor Java Backend (Spring Boot), com paralelos explícitos para facilitar o aprendizado do ecossistema TypeScript/Next.js.
 13. Não faça commit nem push automaticamente.
