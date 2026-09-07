@@ -11,7 +11,18 @@ interface ConcertPresentationModeProps {
   initialMode?: "lyrics" | "chords";
   concertTitle: string;
   onClose: () => void;
+  onComplete?: (itemId: string) => void;
 }
+
+type LyricsFontSize = "small" | "normal" | "large" | "xlarge" | "xxlarge";
+const FONT_SIZES: LyricsFontSize[] = ["small", "normal", "large", "xlarge", "xxlarge"];
+const FONT_SIZE_LABELS: Record<LyricsFontSize, string> = {
+  small: "P",
+  normal: "M",
+  large: "G",
+  xlarge: "XG",
+  xxlarge: "2XG",
+};
 
 export function ConcertPresentationMode({
   setlist,
@@ -19,12 +30,43 @@ export function ConcertPresentationMode({
   initialMode = "lyrics",
   concertTitle,
   onClose,
+  onComplete,
 }: ConcertPresentationModeProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [viewMode, setViewMode] = useState<"lyrics" | "chords">(initialMode);
   const [chordsMode, setChordsMode] = useState<"render" | "raw">("render");
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const fontSize = "large" as const;
+  const [lyricsFontSize, setLyricsFontSize] = useState<LyricsFontSize>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("repp_lyrics_font_size");
+      if (
+        saved &&
+        ["small", "normal", "large", "xlarge", "xxlarge"].includes(saved)
+      ) {
+        return saved as LyricsFontSize;
+      }
+    }
+    return "large";
+  });
+
+  const handleFontSizeChange = (newSize: LyricsFontSize) => {
+    setLyricsFontSize(newSize);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("repp_lyrics_font_size", newSize);
+    }
+  };
+
+  const currentSizeIndex = FONT_SIZES.indexOf(lyricsFontSize);
+  const decreaseFontSize = () => {
+    if (currentSizeIndex > 0) {
+      handleFontSizeChange(FONT_SIZES[currentSizeIndex - 1]);
+    }
+  };
+  const increaseFontSize = () => {
+    if (currentSizeIndex < FONT_SIZES.length - 1) {
+      handleFontSizeChange(FONT_SIZES[currentSizeIndex + 1]);
+    }
+  };
 
   const currentItem = setlist[currentIndex];
   const music = currentItem?.music;
@@ -225,6 +267,36 @@ export function ConcertPresentationMode({
           </div>
         )}
 
+        {/* Font Size Adjuster for Lyrics (A- / A+) */}
+        {viewMode === "lyrics" && hasLyrics && (
+          <div className="flex items-center rounded-full bg-zinc-900/90 border border-zinc-700/70 p-0.5 backdrop-blur-md shadow-lg">
+            <button
+              type="button"
+              onClick={decreaseFontSize}
+              disabled={currentSizeIndex === 0}
+              className="rounded-full px-2.5 py-1 text-xs font-bold text-zinc-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+              title="Diminuir tamanho da fonte da letra (A-)"
+            >
+              A-
+            </button>
+            <span
+              className="text-[11px] font-mono font-extrabold text-emerald-400 px-1 min-w-[24px] text-center select-none"
+              title={`Tamanho atual: ${FONT_SIZE_LABELS[lyricsFontSize]}`}
+            >
+              {FONT_SIZE_LABELS[lyricsFontSize]}
+            </span>
+            <button
+              type="button"
+              onClick={increaseFontSize}
+              disabled={currentSizeIndex === FONT_SIZES.length - 1}
+              className="rounded-full px-2.5 py-1 text-xs font-bold text-zinc-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+              title="Aumentar tamanho da fonte da letra (A+)"
+            >
+              A+
+            </button>
+          </div>
+        )}
+
         {/* Fullscreen Button */}
         <button
           type="button"
@@ -289,7 +361,7 @@ export function ConcertPresentationMode({
         {/* Mode Content: Lyrics or Chords */}
         {viewMode === "lyrics" ? (
           hasLyrics ? (
-            <LyricsViewer lyrics={music.lyrics || ""} fontSize={fontSize} />
+            <LyricsViewer lyrics={music.lyrics || ""} fontSize={lyricsFontSize} />
           ) : (
             <div className="py-20 text-center text-zinc-500">
               <p className="text-base font-semibold text-zinc-400">Nenhuma letra cadastrada para esta música.</p>
@@ -310,7 +382,7 @@ export function ConcertPresentationMode({
               chords={music.chords || ""}
               originalKey={music.originalKey}
               preferredKey={music.preferredKey}
-              fontSize={fontSize}
+              fontSize="large"
               mode={chordsMode}
             />
           ) : (
@@ -330,18 +402,21 @@ export function ConcertPresentationMode({
         )}
       </main>
 
-      {/* Floating PROXIMA Button at Bottom (No bar container) */}
-      {currentIndex < setlist.length - 1 && (
-        <button
-          type="button"
-          onClick={() => setCurrentIndex((prev) => prev + 1)}
-          className="fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-6 py-3 text-xs sm:text-sm font-black shadow-2xl shadow-emerald-500/30 active:scale-95 transition-all cursor-pointer"
-          title="Próxima música do setlist"
-        >
-          <span>PRÓXIMA</span>
-          <span>▶</span>
-        </button>
-      )}
+      {/* Floating CONCLUIR Button at Bottom */}
+      <button
+        type="button"
+        onClick={() => {
+          if (onComplete) {
+            onComplete(currentItem.id);
+          }
+          onClose();
+        }}
+        className="fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-6 py-3 text-xs sm:text-sm font-black shadow-2xl shadow-emerald-500/30 active:scale-95 transition-all cursor-pointer"
+        title="Concluir música e voltar ao setlist"
+      >
+        <span>CONCLUIR</span>
+        <span>✓</span>
+      </button>
     </div>
   );
 }

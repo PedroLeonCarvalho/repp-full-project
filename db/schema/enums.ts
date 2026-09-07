@@ -1,43 +1,48 @@
 import { pgEnum } from "drizzle-orm/pg-core";
 
 export const MUSICAL_KEYS = [
-  // Major keys
-  "C",
-  "C#",
-  "Db",
-  "D",
-  "D#",
-  "Eb",
-  "E",
-  "F",
-  "F#",
-  "Gb",
-  "G",
-  "G#",
+  // A keys
   "Ab",
   "A",
   "A#",
-  "Bb",
-  "B",
-  "Cb",
-  // Minor keys
-  "Cm",
-  "C#m",
-  "Dbm",
-  "Dm",
-  "D#m",
-  "Ebm",
-  "Em",
-  "Fm",
-  "F#m",
-  "Gbm",
-  "Gm",
-  "G#m",
   "Abm",
   "Am",
   "A#m",
+  // B keys
+  "Bb",
+  "B",
   "Bbm",
   "Bm",
+  // C keys
+  "Cb",
+  "C",
+  "C#",
+  "Cm",
+  "C#m",
+  // D keys
+  "Db",
+  "D",
+  "D#",
+  "Dbm",
+  "Dm",
+  "D#m",
+  // E keys
+  "Eb",
+  "E",
+  "Ebm",
+  "Em",
+  // F keys
+  "F",
+  "F#",
+  "Fm",
+  "F#m",
+  // G keys
+  "Gb",
+  "G",
+  "G#",
+  "Gbm",
+  "Gm",
+  "G#m",
 ] as const;
 
 export const MUSIC_GENRES = [

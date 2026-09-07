@@ -31,6 +31,7 @@ export interface Music {
   preferredKey: MusicalKey | null;
   skillLevel: boolean;
   genre: MusicGenre | null;
+  genres?: MusicGenre[] | null;
   note: string | null;
   spotifyLink: string | null;
   sheetMusicFile: string | null;
@@ -48,6 +49,7 @@ export interface CreateMusicInput {
   preferredKey?: MusicalKey | null;
   skillLevel?: boolean;
   genre?: MusicGenre | null;
+  genres?: MusicGenre[] | null;
   note?: string | null;
   spotifyLink?: string | null;
   sheetMusicFile?: string | null;
@@ -62,6 +64,7 @@ export interface UpdateMusicInput {
   preferredKey?: MusicalKey | null;
   skillLevel?: boolean;
   genre?: MusicGenre | null;
+  genres?: MusicGenre[] | null;
   note?: string | null;
   spotifyLink?: string | null;
   sheetMusicFile?: string | null;
@@ -70,6 +73,7 @@ export interface UpdateMusicInput {
 export interface MusicFilter {
   search?: string;
   genre?: MusicGenre;
+  genres?: MusicGenre[];
   originalKey?: MusicalKey;
   preferredKey?: MusicalKey;
   skillLevel?: boolean;

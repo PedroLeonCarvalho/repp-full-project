@@ -11,7 +11,7 @@ import type {
   ProjectWithMusics,
   UpdateProjectInput,
 } from "../types";
-import type { Music } from "@/features/music/types";
+import type { Music, MusicGenre } from "@/features/music/types";
 import {
   createProjectSchema,
   updateProjectSchema,
@@ -331,6 +331,7 @@ export async function listProjectMusics(
     preferredKey: r.cm.preferredKey,
     skillLevel: r.cm.skillLevel,
     genre: r.cm.genre,
+    genres: (r.cm.genres as MusicGenre[]) ?? (r.cm.genre ? [r.cm.genre as MusicGenre] : null),
     note: r.cm.note,
     spotifyLink: r.cm.spotifyLink,
     sheetMusicFile: r.cm.sheetMusicFile,

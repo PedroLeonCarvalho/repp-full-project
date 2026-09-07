@@ -16,6 +16,7 @@ import type {
   PublicSharedConcert,
   UpdateConcertInput,
 } from "../types";
+import type { MusicGenre } from "@/features/music/types";
 import {
   createConcertSchema,
   updateConcertSchema,
@@ -321,6 +322,7 @@ export async function getConcertById(
       preferredKey: r.cm.preferredKey,
       skillLevel: r.cm.skillLevel,
       genre: r.cm.genre,
+      genres: (r.cm.genres as MusicGenre[]) ?? (r.cm.genre ? [r.cm.genre as MusicGenre] : null),
       note: r.cm.note,
       spotifyLink: r.cm.spotifyLink,
       sheetMusicFile: r.cm.sheetMusicFile,

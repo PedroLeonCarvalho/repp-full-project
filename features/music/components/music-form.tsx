@@ -74,9 +74,13 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
   const [skillLevel, setSkillLevel] = useState<boolean>(
     initialData?.skillLevel ?? true
   );
-  const [genre, setGenre] = useState<MusicGenre | "">(
-    initialData?.genre || ""
-  );
+  const initialGenres: MusicGenre[] =
+    initialData?.genres && initialData.genres.length > 0
+      ? initialData.genres
+      : initialData?.genre
+      ? [initialData.genre]
+      : [];
+  const [genres, setGenres] = useState<MusicGenre[]>(initialGenres);
   const [note, setNote] = useState(initialData?.note || "");
   const [spotifyLink, setSpotifyLink] = useState(
     initialData?.spotifyLink || ""
@@ -111,6 +115,17 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
     type: "info" | "success" | "error";
     text: string;
   } | null>(null);
+
+  const handleAddGenre = (genreToAdd: MusicGenre) => {
+    if (!genreToAdd) return;
+    if (genres.length >= 3) return;
+    if (genres.includes(genreToAdd)) return;
+    setGenres((prev) => [...prev, genreToAdd]);
+  };
+
+  const handleRemoveGenre = (genreToRemove: MusicGenre) => {
+    setGenres((prev) => prev.filter((g) => g !== genreToRemove));
+  };
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -377,7 +392,8 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
           originalKey: originalKey ? (originalKey as MusicalKey) : null,
           preferredKey: preferredKey ? (preferredKey as MusicalKey) : null,
           skillLevel,
-          genre: genre ? (genre as MusicGenre) : null,
+          genres: genres.length > 0 ? genres : null,
+          genre: genres.length > 0 ? genres[0] : null,
           note: note.trim() || null,
           spotifyLink: spotifyLink.trim() || null,
           sheetMusicFile: sheetMusicFile.trim() || null,
@@ -393,7 +409,8 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
           originalKey: originalKey ? (originalKey as MusicalKey) : null,
           preferredKey: preferredKey ? (preferredKey as MusicalKey) : null,
           skillLevel,
-          genre: genre ? (genre as MusicGenre) : null,
+          genres: genres.length > 0 ? genres : null,
+          genre: genres.length > 0 ? genres[0] : null,
           note: note.trim() || null,
           spotifyLink: spotifyLink.trim() || null,
           sheetMusicFile: sheetMusicFile.trim() || null,
@@ -623,27 +640,6 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
             )}
           </div>
 
-          {/* Lyrics search feedback */}
-          {lyricsFeedback && (
-            <div
-              className={`rounded-xl p-2.5 text-xs flex items-center justify-between gap-2 ${
-                lyricsFeedback.type === "success"
-                  ? "bg-emerald-950/60 border border-emerald-800 text-emerald-300"
-                  : lyricsFeedback.type === "error"
-                  ? "bg-red-950/60 border border-red-800 text-red-300"
-                  : "bg-zinc-800/80 border border-zinc-700 text-zinc-300"
-              }`}
-            >
-              <span>{lyricsFeedback.text}</span>
-              <button
-                type="button"
-                onClick={() => setLyricsFeedback(null)}
-                className="text-zinc-400 hover:text-zinc-200 cursor-pointer text-xs p-1"
-              >
-                ✕
-              </button>
-            </div>
-          )}
 
           {/* ─── Artist ─── */}
           <div>
@@ -671,23 +667,97 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
             )}
           </div>
 
-          {/* ─── Genre ─── */}
-          <div>
-            <label className="block text-xs font-medium text-zinc-300 mb-1">
-              Gênero Musical
-            </label>
-            <select
-              value={genre}
-              onChange={(e) => setGenre(e.target.value as MusicGenre | "")}
-              className="w-full rounded-xl bg-zinc-800/80 px-3.5 py-2.5 text-sm text-zinc-100 border border-zinc-700/60 focus:border-emerald-500 focus:outline-none"
-            >
-              <option value="">Selecione um gênero</option>
-              {MUSIC_GENRES.map((g) => (
-                <option key={g} value={g}>
-                  {GENRE_LABELS[g]}
-                </option>
-              ))}
-            </select>
+          {/* ─── Genres (Up to 3 styles) ─── */}
+          <div className="rounded-2xl bg-zinc-800/40 border border-zinc-700/50 p-3.5 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-medium text-zinc-200">
+                Estilos Musicais
+                <span className="ml-1 text-[11px] text-zinc-400 font-normal">
+                  (Selecione até 3 estilos)
+                </span>
+              </label>
+              <span
+                className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                  genres.length === 3
+                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                    : "bg-zinc-800 text-zinc-400 border border-zinc-700/60"
+                }`}
+              >
+                {genres.length} de 3 selecionados
+              </span>
+            </div>
+
+            {/* Selected Genres Badges (Registered/Visual feedback) */}
+            {genres.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-2">
+                {genres.map((g) => (
+                  <span
+                    key={g}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-3 py-1.5 text-xs font-medium text-emerald-300 shadow-sm"
+                  >
+                    <span>{GENRE_LABELS[g] || g}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveGenre(g)}
+                      className="rounded-full p-0.5 text-emerald-400 hover:bg-emerald-500/30 hover:text-emerald-100 transition-colors cursor-pointer"
+                      title={`Remover estilo ${GENRE_LABELS[g] || g}`}
+                      aria-label={`Remover estilo ${GENRE_LABELS[g] || g}`}
+                    >
+                      <svg
+                        className="h-3.5 w-3.5"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-zinc-500 italic">
+                Nenhum estilo selecionado ainda.
+              </p>
+            )}
+
+            {/* Selector Dropdown / Add More */}
+            {genres.length < 3 ? (
+              <div>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      handleAddGenre(e.target.value as MusicGenre);
+                    }
+                  }}
+                  className="w-full rounded-xl bg-zinc-800/80 px-3.5 py-2.5 text-sm text-zinc-100 border border-zinc-700/60 focus:border-emerald-500 focus:outline-none cursor-pointer"
+                >
+                  <option value="">
+                    {genres.length === 0
+                      ? "+ Selecionar primeiro estilo..."
+                      : `+ Adicionar outro estilo (${3 - genres.length} restante${
+                          3 - genres.length > 1 ? "s" : ""
+                        })...`}
+                  </option>
+                  {MUSIC_GENRES.filter((g) => !genres.includes(g)).map((g) => (
+                    <option key={g} value={g}>
+                      {GENRE_LABELS[g] || g}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-[11px] text-amber-300/90 flex items-center gap-1.5">
+                <span>ℹ️</span>
+                <span>
+                  Limite máximo de 3 estilos atingido. Para alterar, remova um dos estilos acima.
+                </span>
+              </div>
+            )}
           </div>
 
           {/* ─── Keys Row ─── */}
@@ -748,31 +818,51 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
               <label className="block text-xs font-medium text-zinc-300">
                 Letra{isEditing && <span className="text-zinc-500 font-normal"> (substituição pessoal)</span>}
               </label>
-              {!isEditing && (
+              <button
+                type="button"
+                onClick={handleSearchLyrics}
+                disabled={!title.trim() || isSearchingLyrics}
+                className="text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer flex items-center gap-1"
+                title="Buscar letra na API LRCLIB"
+              >
+                <span>🔍</span>
+                <span>{isSearchingLyrics ? "Buscando..." : "Buscar via LRCLIB"}</span>
+              </button>
+            </div>
+            {lyricsFeedback && (
+              <div
+                className={`mb-2 rounded-xl p-2.5 text-xs flex items-center justify-between gap-2 ${
+                  lyricsFeedback.type === "success"
+                    ? "bg-emerald-950/60 border border-emerald-800 text-emerald-300"
+                    : lyricsFeedback.type === "error"
+                    ? "bg-red-950/60 border border-red-800 text-red-300"
+                    : "bg-zinc-800/80 border border-zinc-700 text-zinc-300"
+                }`}
+              >
+                <span>{lyricsFeedback.text}</span>
                 <button
                   type="button"
-                  onClick={handleSearchLyrics}
-                  disabled={!title.trim() || isSearchingLyrics}
-                  className="text-[11px] text-emerald-400 hover:text-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  onClick={() => setLyricsFeedback(null)}
+                  className="text-zinc-400 hover:text-zinc-200 cursor-pointer text-xs p-1"
                 >
-                  🔍 Buscar via LRCLIB
+                  ✕
                 </button>
-              )}
-            </div>
+              </div>
+            )}
             <textarea
               rows={6}
               value={lyrics}
               onChange={(e) => setLyrics(e.target.value)}
               placeholder={
                 isEditing
-                  ? "Substitua a letra do catálogo por uma versão personalizada..."
-                  : "Cole aqui a letra da música ou busque pelo título acima..."
+                  ? "Substitua a letra por uma nova busca ou digite sua versão personalizada..."
+                  : "Cole aqui a letra da música ou busque pelo título..."
               }
               className="w-full font-mono text-xs rounded-xl bg-zinc-800/80 p-3 text-zinc-100 border border-zinc-700/60 focus:border-emerald-500 focus:outline-none leading-relaxed"
             />
             {isEditing && (
               <p className="text-[11px] text-zinc-500 mt-1">
-                Deixe em branco para usar a letra do catálogo global.
+                Deixe em branco para usar a letra do catálogo global ou use &quot;Buscar via LRCLIB&quot; para substituir/adicionar.
               </p>
             )}
           </div>

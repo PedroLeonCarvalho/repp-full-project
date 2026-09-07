@@ -21,6 +21,7 @@ export const customerMusics = pgTable(
     preferredKey: musicalKeyEnum("preferred_key"),
     skillLevel: boolean("skill_level").notNull().default(true),
     genre: musicGenreEnum("genre"),
+    genres: text("genres").array(),
     note: text("note"),
     spotifyLink: text("spotify_link"),
     sheetMusicFile: text("sheet_music_file"),

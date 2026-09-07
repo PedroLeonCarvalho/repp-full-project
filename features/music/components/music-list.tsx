@@ -203,14 +203,23 @@ export function MusicList({
                   {/* Artist + Genre */}
                   <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400 mt-1">
                     <span className="truncate font-medium">{music.artist}</span>
-                    {music.genre && (
+                    {music.genres && music.genres.length > 0 ? (
+                      <>
+                        <span className="text-zinc-600">•</span>
+                        <span className="text-zinc-500">
+                          {music.genres
+                            .map((g) => GENRE_LABELS[g] || g)
+                            .join(", ")}
+                        </span>
+                      </>
+                    ) : music.genre ? (
                       <>
                         <span className="text-zinc-600">•</span>
                         <span className="text-zinc-500">
                           {GENRE_LABELS[music.genre]}
                         </span>
                       </>
-                    )}
+                    ) : null}
                   </div>
 
                   {/* Truncated Observation / Note */}

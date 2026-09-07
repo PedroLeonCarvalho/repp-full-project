@@ -25,6 +25,7 @@ export const createMusicSchema = z.object({
   preferredKey: musicalKeySchema.optional().nullable(),
   skillLevel: z.boolean().default(true),
   genre: musicGenreSchema.optional().nullable(),
+  genres: z.array(musicGenreSchema).max(3, "Selecione no máximo 3 estilos").optional().nullable(),
   note: z.string().trim().optional().nullable(),
   spotifyLink: z
     .string()
@@ -45,6 +46,7 @@ export const updateMusicSchema = z.object({
   preferredKey: musicalKeySchema.optional().nullable(),
   skillLevel: z.boolean().optional(),
   genre: musicGenreSchema.optional().nullable(),
+  genres: z.array(musicGenreSchema).max(3, "Selecione no máximo 3 estilos").optional().nullable(),
   note: z.string().trim().optional().nullable(),
   spotifyLink: z
     .string()

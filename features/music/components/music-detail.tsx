@@ -128,11 +128,20 @@ export function MusicDetail({
                 Tom Original: {music.originalKey}
               </span>
             )}
-            {music.genre && (
-              <span className="inline-flex items-center rounded-lg bg-purple-500/10 border border-purple-500/30 px-2.5 py-1 text-xs text-purple-300">
+            {music.genres && music.genres.length > 0 ? (
+              music.genres.map((g) => (
+                <span
+                  key={g}
+                  className="inline-flex items-center rounded-lg bg-purple-500/10 border border-purple-500/30 px-2.5 py-1 text-xs text-purple-300 font-medium"
+                >
+                  {GENRE_LABELS[g] || g}
+                </span>
+              ))
+            ) : music.genre ? (
+              <span className="inline-flex items-center rounded-lg bg-purple-500/10 border border-purple-500/30 px-2.5 py-1 text-xs text-purple-300 font-medium">
                 {GENRE_LABELS[music.genre]}
               </span>
-            )}
+            ) : null}
             <span
               className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium ${
                 music.skillLevel

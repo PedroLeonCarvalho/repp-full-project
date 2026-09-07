@@ -31,6 +31,19 @@ export function ConcertLiveSetlist({
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [completedItemIds, setCompletedItemIds] = useState<Set<string>>(new Set());
+
+  const toggleCompleteItem = (itemId: string) => {
+    setCompletedItemIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
+  };
 
   // Live real-time clock ticking every second
   useEffect(() => {
@@ -296,6 +309,9 @@ export function ConcertLiveSetlist({
         initialMode={activePresentation.mode}
         concertTitle={concert.title}
         onClose={() => setActivePresentation(null)}
+        onComplete={(itemId) => {
+          setCompletedItemIds((prev) => new Set(prev).add(itemId));
+        }}
       />
     );
   }
@@ -506,6 +522,7 @@ export function ConcertLiveSetlist({
               if (!music) return null;
               const originalIndex = setlist.findIndex((it) => it.id === item.id);
               const displayIndex = originalIndex !== -1 ? originalIndex : index;
+              const isCompleted = completedItemIds.has(item.id);
               const keyDisplay = music.preferredKey || music.originalKey;
               const noteText = music.note || item.note;
               const hasLyrics = Boolean(music.lyrics && music.lyrics.trim());
@@ -528,6 +545,8 @@ export function ConcertLiveSetlist({
                       ? "opacity-30 border-2 border-dashed border-emerald-500 bg-zinc-950/60"
                       : isDragOver
                       ? "border-2 border-emerald-500/80 bg-emerald-950/30 scale-[1.01]"
+                      : isCompleted
+                      ? "border-zinc-900 bg-zinc-950/60 opacity-40 hover:opacity-75 hover:border-zinc-800"
                       : "border-zinc-800/80 bg-zinc-900/70 hover:bg-zinc-900 hover:border-zinc-700/80"
                   }`}
                 >
@@ -539,7 +558,9 @@ export function ConcertLiveSetlist({
                         onTouchStart={() => handleTouchStart(displayIndex)}
                         onTouchMove={handleTouchMove}
                         onTouchEnd={handleTouchEnd}
-                        className="cursor-grab active:cursor-grabbing text-zinc-500 hover:text-zinc-200 select-none text-base sm:text-lg px-0.5 py-0.5 shrink-0 touch-none"
+                        className={`cursor-grab active:cursor-grabbing select-none text-base sm:text-lg px-0.5 py-0.5 shrink-0 touch-none ${
+                          isCompleted ? "text-zinc-700" : "text-zinc-500 hover:text-zinc-200"
+                        }`}
                         title="Segure e deslize para reordenar"
                       >
                         ⠿
@@ -549,32 +570,46 @@ export function ConcertLiveSetlist({
                     )}
 
                     {/* Order number */}
-                    <span className="font-extrabold text-xs sm:text-sm text-zinc-400 shrink-0 w-6 text-center">
+                    <span className={`font-extrabold text-xs sm:text-sm shrink-0 w-6 text-center ${
+                      isCompleted ? "text-zinc-600" : "text-zinc-400"
+                    }`}>
                       #{displayIndex + 1}
                     </span>
 
                     {/* Music Title */}
                     <span
                       onClick={() => {
-                        if (hasLyrics) {
-                          setActivePresentation({ index: displayIndex, mode: "lyrics" });
-                        } else if (hasChords) {
-                          setActivePresentation({ index: displayIndex, mode: "chords" });
+                        if (isCompleted) {
+                          toggleCompleteItem(item.id);
+                        } else {
+                          if (hasLyrics) {
+                            setActivePresentation({ index: displayIndex, mode: "lyrics" });
+                          } else if (hasChords) {
+                            setActivePresentation({ index: displayIndex, mode: "chords" });
+                          }
                         }
                       }}
-                      className={`font-bold text-base sm:text-lg text-zinc-100 truncate tracking-tight ${
-                        hasLyrics || hasChords
-                          ? "cursor-pointer hover:text-emerald-400 transition-colors"
-                          : "cursor-default hover:text-zinc-100"
+                      className={`font-bold text-base sm:text-lg truncate tracking-tight transition-all ${
+                        isCompleted
+                          ? "line-through text-zinc-500 hover:text-zinc-300 cursor-pointer"
+                          : hasLyrics || hasChords
+                          ? "text-zinc-100 cursor-pointer hover:text-emerald-400"
+                          : "text-zinc-100 cursor-default"
                       }`}
-                      title={music.title}
+                      title={
+                        isCompleted
+                          ? `Música concluída. Clique para desmarcar: ${music.title}`
+                          : music.title
+                      }
                     >
                       {music.title}
                     </span>
                   </div>
 
                   {/* Right: Tune (Tom), Notes & Dedicated "Letra" and "Cifra" Buttons */}
-                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                  <div className={`flex items-center gap-1.5 sm:gap-2 shrink-0 transition-opacity ${
+                    isCompleted ? "opacity-60" : "opacity-100"
+                  }`}>
                     {/* Note / Observação badge (if present) */}
                     {noteText && (
                       <span

@@ -1,4 +1,4 @@
-import { and, asc, eq, ilike, or } from "drizzle-orm";
+import { and, asc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { customerMusics } from "@/db/schema/customer-musics";
 import { musicCatalog } from "@/db/schema/music-catalog";
@@ -7,6 +7,7 @@ import type {
   CreateMusicInput,
   Music,
   MusicFilter,
+  MusicGenre,
   UpdateMusicInput,
 } from "../types";
 import {
@@ -32,6 +33,13 @@ function mergeRow(row: {
   cm: typeof customerMusics.$inferSelect;
   mc: typeof musicCatalog.$inferSelect;
 }): Music {
+  const genresList: MusicGenre[] =
+    row.cm.genres && row.cm.genres.length > 0
+      ? (row.cm.genres as MusicGenre[])
+      : row.cm.genre
+      ? [row.cm.genre]
+      : [];
+
   return {
     id: row.cm.id,
     musicCatalogId: row.cm.musicCatalogId,
@@ -43,7 +51,8 @@ function mergeRow(row: {
     originalKey: row.cm.originalKey,
     preferredKey: row.cm.preferredKey,
     skillLevel: row.cm.skillLevel,
-    genre: row.cm.genre,
+    genre: row.cm.genre ?? (genresList[0] || null),
+    genres: genresList,
     note: row.cm.note,
     spotifyLink: row.cm.spotifyLink,
     sheetMusicFile: row.cm.sheetMusicFile,
@@ -85,6 +94,15 @@ export async function createMusic(
     );
   }
 
+  const genresToSave: MusicGenre[] =
+    validated.genres && validated.genres.length > 0
+      ? validated.genres
+      : validated.genre
+      ? [validated.genre]
+      : [];
+
+  const primaryGenre = genresToSave[0] || validated.genre || null;
+
   // 3. Insert customer music record
   const [created] = await db
     .insert(customerMusics)
@@ -96,7 +114,8 @@ export async function createMusic(
       originalKey: validated.originalKey || null,
       preferredKey: validated.preferredKey || null,
       skillLevel: validated.skillLevel ?? true,
-      genre: validated.genre || null,
+      genre: primaryGenre,
+      genres: genresToSave.length > 0 ? genresToSave : null,
       note: validated.note || null,
       spotifyLink: validated.spotifyLink || null,
       sheetMusicFile: validated.sheetMusicFile || null,
@@ -127,6 +146,20 @@ export async function updateMusic(
     );
   }
 
+  let genresUpdate: { genre?: MusicGenre | null; genres?: string[] | null } = {};
+  if (validated.genres !== undefined) {
+    const gList = validated.genres || [];
+    genresUpdate = {
+      genres: gList.length > 0 ? gList : null,
+      genre: gList[0] || null,
+    };
+  } else if (validated.genre !== undefined) {
+    genresUpdate = {
+      genre: validated.genre,
+      genres: validated.genre ? [validated.genre] : null,
+    };
+  }
+
   // Update only personal fields (title/artist are immutable)
   const [updated] = await db
     .update(customerMusics)
@@ -136,7 +169,7 @@ export async function updateMusic(
       ...(validated.originalKey !== undefined ? { originalKey: validated.originalKey } : {}),
       ...(validated.preferredKey !== undefined ? { preferredKey: validated.preferredKey } : {}),
       ...(validated.skillLevel !== undefined ? { skillLevel: validated.skillLevel } : {}),
-      ...(validated.genre !== undefined ? { genre: validated.genre } : {}),
+      ...genresUpdate,
       ...(validated.note !== undefined ? { note: validated.note } : {}),
       ...(validated.spotifyLink !== undefined ? { spotifyLink: validated.spotifyLink } : {}),
       ...(validated.sheetMusicFile !== undefined ? { sheetMusicFile: validated.sheetMusicFile } : {}),
@@ -214,7 +247,12 @@ export async function listMusics(
   }
 
   if (filters?.genre) {
-    conditions.push(eq(customerMusics.genre, filters.genre));
+    conditions.push(
+      or(
+        eq(customerMusics.genre, filters.genre),
+        sql`${filters.genre} = ANY(${customerMusics.genres})`
+      )!
+    );
   }
 
   if (filters?.originalKey) {

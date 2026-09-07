@@ -4,10 +4,11 @@ import React from "react";
 
 interface LyricsViewerProps {
   lyrics: string;
-  fontSize?: "normal" | "large" | "xlarge" | "xxlarge";
+  fontSize?: "small" | "normal" | "large" | "xlarge" | "xxlarge";
 }
 
 const FONT_SIZE_CLASSES = {
+  small: "text-sm sm:text-base leading-snug",
   normal: "text-base sm:text-lg leading-snug",
   large: "text-lg sm:text-xl leading-snug",
   xlarge: "text-xl sm:text-2xl leading-snug font-semibold",
