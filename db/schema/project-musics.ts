@@ -1,5 +1,5 @@
 import { pgTable, timestamp, unique, uuid } from "drizzle-orm/pg-core";
-import { musics } from "./musics";
+import { customerMusics } from "./customer-musics";
 import { projects } from "./projects";
 
 export const projectMusics = pgTable(
@@ -11,7 +11,7 @@ export const projectMusics = pgTable(
       .references(() => projects.id, { onDelete: "cascade" }),
     musicId: uuid("music_id")
       .notNull()
-      .references(() => musics.id, { onDelete: "cascade" }),
+      .references(() => customerMusics.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

@@ -36,9 +36,10 @@ export function ConcertDetail({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-  const [presentationStartIndex, setPresentationStartIndex] = useState<number | null>(
-    null
-  );
+  const [presentationState, setPresentationState] = useState<{
+    index: number;
+    mode: "lyrics" | "chords";
+  } | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [, startTransition] = useTransition();
@@ -165,13 +166,14 @@ export function ConcertDetail({
   }
 
   // Live Presentation Mode Full Screen
-  if (presentationStartIndex !== null) {
+  if (presentationState !== null) {
     return (
       <ConcertPresentationMode
         setlist={concert.setlist}
-        initialIndex={presentationStartIndex}
+        initialIndex={presentationState.index}
+        initialMode={presentationState.mode}
         concertTitle={concert.title}
-        onClose={() => setPresentationStartIndex(null)}
+        onClose={() => setPresentationState(null)}
       />
     );
   }
@@ -332,7 +334,7 @@ export function ConcertDetail({
                     if (onOpenLiveSetlist) {
                       onOpenLiveSetlist();
                     } else {
-                      setPresentationStartIndex(0);
+                      setPresentationState({ index: 0, mode: "lyrics" });
                     }
                   }}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-1.5 text-xs font-bold text-zinc-950 hover:bg-emerald-400 transition-all shadow-md shadow-emerald-500/10 active:scale-95 cursor-pointer"
@@ -450,10 +452,22 @@ export function ConcertDetail({
                       {/* View lyrics button */}
                       <button
                         type="button"
-                        onClick={() => setPresentationStartIndex(index)}
+                        onClick={() => setPresentationState({ index, mode: "lyrics" })}
                         className="rounded-lg bg-zinc-800 px-2.5 py-1.5 text-[11px] font-medium text-emerald-400 hover:bg-zinc-700 transition-colors cursor-pointer"
+                        title="Ver letra"
                       >
                         Letra
+                      </button>
+
+                      {/* View chords button */}
+                      <button
+                        type="button"
+                        onClick={() => setPresentationState({ index, mode: "chords" })}
+                        className="rounded-lg bg-zinc-800 px-2.5 py-1.5 text-[11px] font-medium text-amber-400 hover:bg-zinc-700 transition-colors cursor-pointer flex items-center gap-1"
+                        title="Ver cifra"
+                      >
+                        <span>🎸</span>
+                        <span>Cifra</span>
                       </button>
 
                       {/* Remove button */}

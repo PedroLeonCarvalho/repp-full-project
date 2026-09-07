@@ -2,7 +2,8 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { projects } from "@/db/schema/projects";
 import { projectMusics } from "@/db/schema/project-musics";
-import { musics } from "@/db/schema/musics";
+import { customerMusics } from "@/db/schema/customer-musics";
+import { musicCatalog } from "@/db/schema/music-catalog";
 import { customers } from "@/db/schema/customers";
 import type {
   CreateProjectInput,
@@ -214,12 +215,12 @@ export async function addMusicsToProject(
 
   // 2. Verify all musics belong to customer
   const validMusics = await db
-    .select({ id: musics.id })
-    .from(musics)
+    .select({ id: customerMusics.id })
+    .from(customerMusics)
     .where(
       and(
-        eq(musics.customerId, customerId),
-        inArray(musics.id, musicIds)
+        eq(customerMusics.customerId, customerId),
+        inArray(customerMusics.id, musicIds)
       )
     );
 
@@ -302,32 +303,40 @@ export async function listProjectMusics(
     );
   }
 
-  const items = await db
+  const rawItems = await db
     .select({
-      id: musics.id,
-      customerId: musics.customerId,
-      title: musics.title,
-      artist: musics.artist,
-      lyrics: musics.lyrics,
-      originalKey: musics.originalKey,
-      preferredKey: musics.preferredKey,
-      skillLevel: musics.skillLevel,
-      genre: musics.genre,
-      note: musics.note,
-      spotifyLink: musics.spotifyLink,
-      sheetMusicFile: musics.sheetMusicFile,
-      createdAt: musics.createdAt,
-      updatedAt: musics.updatedAt,
+      cm: customerMusics,
+      mc: musicCatalog,
     })
-    .from(musics)
-    .innerJoin(projectMusics, eq(projectMusics.musicId, musics.id))
+    .from(customerMusics)
+    .innerJoin(musicCatalog, eq(musicCatalog.id, customerMusics.musicCatalogId))
+    .innerJoin(projectMusics, eq(projectMusics.musicId, customerMusics.id))
     .where(
       and(
         eq(projectMusics.projectId, projectId),
-        eq(musics.customerId, customerId)
+        eq(customerMusics.customerId, customerId)
       )
     )
-    .orderBy(musics.title);
+    .orderBy(musicCatalog.title);
+
+  const items = rawItems.map((r) => ({
+    id: r.cm.id,
+    musicCatalogId: r.cm.musicCatalogId,
+    customerId: r.cm.customerId,
+    title: r.mc.title,
+    artist: r.mc.artist,
+    lyrics: r.cm.lyrics ?? r.mc.lyrics,
+    chords: r.cm.chords ?? r.mc.chords,
+    originalKey: r.cm.originalKey,
+    preferredKey: r.cm.preferredKey,
+    skillLevel: r.cm.skillLevel,
+    genre: r.cm.genre,
+    note: r.cm.note,
+    spotifyLink: r.cm.spotifyLink,
+    sheetMusicFile: r.cm.sheetMusicFile,
+    createdAt: r.cm.createdAt,
+    updatedAt: r.cm.updatedAt,
+  }));
 
   return items;
 }

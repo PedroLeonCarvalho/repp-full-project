@@ -3,7 +3,8 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { concerts } from "@/db/schema/concerts";
 import { setlistItems } from "@/db/schema/setlist-items";
-import { musics } from "@/db/schema/musics";
+import { customerMusics } from "@/db/schema/customer-musics";
+import { musicCatalog } from "@/db/schema/music-catalog";
 import { projects } from "@/db/schema/projects";
 import { contractors } from "@/db/schema/contractors";
 import { concertMusicians } from "@/db/schema/concert-musicians";
@@ -284,7 +285,7 @@ export async function getConcertById(
     return null;
   }
 
-  const items = await db
+  const rawItems = await db
     .select({
       id: setlistItems.id,
       concertId: setlistItems.concertId,
@@ -292,12 +293,41 @@ export async function getConcertById(
       position: setlistItems.position,
       note: setlistItems.note,
       createdAt: setlistItems.createdAt,
-      music: musics,
+      cm: customerMusics,
+      mc: musicCatalog,
     })
     .from(setlistItems)
-    .innerJoin(musics, eq(musics.id, setlistItems.musicId))
+    .innerJoin(customerMusics, eq(customerMusics.id, setlistItems.musicId))
+    .innerJoin(musicCatalog, eq(musicCatalog.id, customerMusics.musicCatalogId))
     .where(eq(setlistItems.concertId, id))
     .orderBy(asc(setlistItems.position));
+
+  const items = rawItems.map((r) => ({
+    id: r.id,
+    concertId: r.concertId,
+    musicId: r.musicId,
+    position: r.position,
+    note: r.note,
+    createdAt: r.createdAt,
+    music: {
+      id: r.cm.id,
+      musicCatalogId: r.cm.musicCatalogId,
+      customerId: r.cm.customerId,
+      title: r.mc.title,
+      artist: r.mc.artist,
+      lyrics: r.cm.lyrics ?? r.mc.lyrics,
+      chords: r.cm.chords ?? r.mc.chords,
+      originalKey: r.cm.originalKey,
+      preferredKey: r.cm.preferredKey,
+      skillLevel: r.cm.skillLevel,
+      genre: r.cm.genre,
+      note: r.cm.note,
+      spotifyLink: r.cm.spotifyLink,
+      sheetMusicFile: r.cm.sheetMusicFile,
+      createdAt: r.cm.createdAt,
+      updatedAt: r.cm.updatedAt,
+    },
+  }));
 
   const mappedConcert = mapConcert(concert.concert);
 
@@ -467,12 +497,12 @@ export async function addMusicsToSetlist(
   }
 
   // 2. Verify all musics belong to customer
-  const validMusics = await db
-    .select({ id: musics.id })
-    .from(musics)
-    .where(and(eq(musics.customerId, customerId), inArray(musics.id, musicIds)));
+  const verifiedMusics = await db
+    .select({ id: customerMusics.id })
+    .from(customerMusics)
+    .where(and(eq(customerMusics.customerId, customerId), inArray(customerMusics.id, musicIds)));
 
-  if (validMusics.length === 0) {
+  if (verifiedMusics.length === 0) {
     return { addedCount: 0 };
   }
 
@@ -485,7 +515,7 @@ export async function addMusicsToSetlist(
   let currentPos = maxPosResult?.maxPos || 0;
   let addedCount = 0;
 
-  for (const music of validMusics) {
+  for (const music of verifiedMusics) {
     currentPos++;
     await db.insert(setlistItems).values({
       concertId,
@@ -678,30 +708,33 @@ export async function getSharedConcertByToken(
   const { concert, projectName } = found;
 
   // Retrieve ordered setlist with music details
-  const items = await db
+  const rawItems2 = await db
     .select({
       id: setlistItems.id,
       position: setlistItems.position,
       note: setlistItems.note,
-      music: musics,
+      cm: customerMusics,
+      mc: musicCatalog,
     })
     .from(setlistItems)
-    .innerJoin(musics, eq(musics.id, setlistItems.musicId))
+    .innerJoin(customerMusics, eq(customerMusics.id, setlistItems.musicId))
+    .innerJoin(musicCatalog, eq(musicCatalog.id, customerMusics.musicCatalogId))
     .where(eq(setlistItems.concertId, concert.id))
     .orderBy(asc(setlistItems.position));
 
-  const sanitizedSetlist = items.map((item) => ({
+  const sanitizedSetlist = rawItems2.map((item) => ({
     id: item.id,
     position: item.position,
     note: item.note,
     music: {
-      id: item.music.id,
-      title: item.music.title,
-      artist: item.music.artist,
-      preferredKey: item.music.preferredKey,
-      originalKey: item.music.originalKey,
-      lyrics: item.music.lyrics,
-      spotifyLink: item.music.spotifyLink,
+      id: item.cm.id,
+      title: item.mc.title,
+      artist: item.mc.artist,
+      preferredKey: item.cm.preferredKey,
+      originalKey: item.cm.originalKey,
+      lyrics: item.cm.lyrics ?? item.mc.lyrics,
+      chords: item.cm.chords ?? item.mc.chords,
+      spotifyLink: item.cm.spotifyLink,
     },
   }));
 

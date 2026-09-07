@@ -11,7 +11,9 @@ import {
   MusicServiceError,
 } from "../services/music-service";
 import { lyricsService } from "../services/lyrics-service";
+import { chordsService } from "../services/chords-service";
 import type {
+  ChordSearchResult,
   CreateMusicInput,
   LyricsSearchResult,
   Music,
@@ -19,6 +21,7 @@ import type {
   SearchLyricsInput,
   UpdateMusicInput,
 } from "../types";
+
 
 
 export type ActionResult<T> =
@@ -130,4 +133,24 @@ export async function searchLyricsAction(
     };
   }
 }
+
+export async function searchChordsAction(
+  title: string,
+  artist: string
+): Promise<ActionResult<ChordSearchResult>> {
+  try {
+    await requireAuthCustomerId();
+    const result = await chordsService.searchChords(title, artist);
+    return { success: true, data: result };
+  } catch (err) {
+    if (err instanceof Error) {
+      return { success: false, error: err.message };
+    }
+    return {
+      success: false,
+      error: "Erro inesperado ao buscar cifra no CifraClub.",
+    };
+  }
+}
+
 

@@ -1,17 +1,22 @@
 import { boolean, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import { musicalKeyEnum, musicGenreEnum } from "./enums";
 import { customers } from "./customers";
+import { musicCatalog } from "./music-catalog";
 
-export const musics = pgTable(
-  "musics",
+export const customerMusics = pgTable(
+  "customer_musics",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     customerId: uuid("customer_id")
       .notNull()
       .references(() => customers.id, { onDelete: "cascade" }),
-    title: text("title").notNull(),
-    artist: text("artist").notNull(),
+    musicCatalogId: uuid("music_catalog_id")
+      .notNull()
+      .references(() => musicCatalog.id, { onDelete: "restrict" }),
+    // Personal overrides (Option B) — take priority over catalog values when non-null
     lyrics: text("lyrics"),
+    chords: text("chords"),
+    // Personal performance settings
     originalKey: musicalKeyEnum("original_key"),
     preferredKey: musicalKeyEnum("preferred_key"),
     skillLevel: boolean("skill_level").notNull().default(true),
@@ -26,10 +31,9 @@ export const musics = pgTable(
       .$onUpdate(() => new Date()),
   },
   (table) => [
-    unique("musics_customer_title_artist_unique").on(
+    unique("customer_musics_customer_catalog_unique").on(
       table.customerId,
-      table.title,
-      table.artist
+      table.musicCatalogId
     ),
   ]
 );

@@ -9,7 +9,7 @@ interface MusicListProps {
   selectedIds: Set<string>;
   onToggleSelect: (id: string) => void;
   onClearSelection: () => void;
-  onSelect: (music: Music) => void;
+  onSelect: (music: Music, initialTab?: "lyrics" | "chords") => void;
   onEdit: (music: Music) => void;
   onDelete: (id: string) => void;
   onOpenCreate: () => void;
@@ -132,6 +132,8 @@ export function MusicList({
           const isConfirmingDelete = deleteConfirmId === music.id;
           const isSelected = selectedIds.has(music.id);
           const displayKey = music.preferredKey || music.originalKey;
+          const hasLyrics = Boolean(music.lyrics && music.lyrics.trim());
+          const hasChords = Boolean(music.chords && music.chords.trim());
 
           return (
             <div
@@ -158,7 +160,7 @@ export function MusicList({
                 {/* Clickable Title & Details */}
                 <button
                   type="button"
-                  onClick={() => onSelect(music)}
+                  onClick={() => onSelect(music, hasLyrics ? "lyrics" : hasChords ? "chords" : "lyrics")}
                   className="flex flex-1 flex-col text-left focus:outline-none min-w-0"
                 >
                   {/* Title + Tone Tag directly next to Title */}
@@ -224,7 +226,7 @@ export function MusicList({
               </div>
 
               {/* Actions Bar */}
-              <div className="flex items-center justify-end gap-1.5 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-800/60 shrink-0">
+              <div className="flex items-center justify-end gap-1.5 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-800/60 shrink-0 flex-wrap">
                 {isConfirmingDelete ? (
                   <div className="flex items-center gap-1 bg-red-950/80 p-1 rounded-xl border border-red-800">
                     <span className="text-[11px] text-red-200 px-1.5">
@@ -250,11 +252,44 @@ export function MusicList({
                   </div>
                 ) : (
                   <>
+                    {/* Dedicated "Letra" Button */}
+                    {hasLyrics ? (
+                      <button
+                        type="button"
+                        onClick={() => onSelect(music, "lyrics")}
+                        className="inline-flex items-center gap-1 rounded-xl bg-emerald-500/15 hover:bg-emerald-500 hover:text-zinc-950 border border-emerald-500/35 px-2.5 py-1.5 text-xs font-bold text-emerald-400 transition-all active:scale-95 cursor-pointer"
+                        title="Ver letra da música"
+                      >
+                        Letra
+                      </button>
+                    ) : (
+                      <span className="rounded-xl bg-zinc-800/40 border border-zinc-700/30 px-2 py-1.5 text-[11px] font-medium text-zinc-600 select-none hidden xs:inline">
+                        Sem letra
+                      </span>
+                    )}
+
+                    {/* Dedicated "Cifra" Button */}
+                    {hasChords ? (
+                      <button
+                        type="button"
+                        onClick={() => onSelect(music, "chords")}
+                        className="inline-flex items-center gap-1 rounded-xl bg-amber-500/15 hover:bg-amber-500 hover:text-zinc-950 border border-amber-500/35 px-2.5 py-1.5 text-xs font-bold text-amber-400 transition-all active:scale-95 cursor-pointer"
+                        title="Ver cifra da música"
+                      >
+                        <span>🎸</span>
+                        <span>Cifra</span>
+                      </button>
+                    ) : (
+                      <span className="rounded-xl bg-zinc-800/40 border border-zinc-700/30 px-2 py-1.5 text-[11px] font-medium text-zinc-600 select-none hidden xs:inline">
+                        Sem cifra
+                      </span>
+                    )}
+
                     {/* Add to Concert button on card */}
                     <button
                       type="button"
                       onClick={() => onAddToConcert([music.id])}
-                      className="inline-flex items-center gap-1 rounded-xl bg-zinc-800/70 hover:bg-emerald-500/20 hover:text-emerald-300 border border-zinc-700/50 hover:border-emerald-500/30 px-2.5 py-1.5 text-xs text-zinc-300 transition-colors"
+                      className="inline-flex items-center gap-1 rounded-xl bg-zinc-800/70 hover:bg-emerald-500/20 hover:text-emerald-300 border border-zinc-700/50 hover:border-emerald-500/30 px-2.5 py-1.5 text-xs text-zinc-300 transition-colors cursor-pointer"
                       title="Adicionar esta música a uma apresentação"
                     >
                       <svg
@@ -270,43 +305,14 @@ export function MusicList({
                           d="M12 4v16m8-8H4"
                         />
                       </svg>
-                      <span className="hidden sm:inline">Apresentação</span>
-                    </button>
-
-                    {/* View Details / Lyrics */}
-                    <button
-                      type="button"
-                      onClick={() => onSelect(music)}
-                      className="rounded-xl p-2 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
-                      title="Ver letra e detalhes"
-                      aria-label="Ver detalhes"
-                    >
-                      <svg
-                        className="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                        />
-                      </svg>
+                      <span className="hidden md:inline">Apresentação</span>
                     </button>
 
                     {/* Edit */}
                     <button
                       type="button"
                       onClick={() => onEdit(music)}
-                      className="rounded-xl p-2 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
+                      className="rounded-xl p-2 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors cursor-pointer"
                       title="Editar música"
                       aria-label="Editar"
                     >
@@ -329,7 +335,7 @@ export function MusicList({
                     <button
                       type="button"
                       onClick={() => setDeleteConfirmId(music.id)}
-                      className="rounded-xl p-2 text-zinc-400 hover:bg-red-950/50 hover:text-red-400 transition-colors"
+                      className="rounded-xl p-2 text-zinc-400 hover:bg-red-950/50 hover:text-red-400 transition-colors cursor-pointer"
                       title="Excluir música"
                       aria-label="Excluir"
                     >

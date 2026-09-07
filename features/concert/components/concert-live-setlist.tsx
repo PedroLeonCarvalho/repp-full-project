@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import type { ConcertWithSetlist, SetlistItem } from "../types";
 import {
+  addMusicsToSetlistAction,
   getConcertByIdAction,
   reorderSetlistAction,
 } from "../actions/concert-actions";
-import { LyricsViewer } from "./lyrics-viewer";
+import { AddToSetlistModal } from "./add-to-setlist-modal";
+import { ConcertPresentationMode } from "./concert-presentation-mode";
 
 interface ConcertLiveSetlistProps {
   concertId: string;
@@ -19,12 +21,16 @@ export function ConcertLiveSetlist({
 }: ConcertLiveSetlistProps) {
   const [concert, setConcert] = useState<ConcertWithSetlist | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeLyricsIndex, setActiveLyricsIndex] = useState<number | null>(null);
-  const fontSize = "large" as const;
+  const [activePresentation, setActivePresentation] = useState<{
+    index: number;
+    mode: "lyrics" | "chords";
+  } | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>("");
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Live real-time clock ticking every second
   useEffect(() => {
@@ -106,20 +112,24 @@ export function ConcertLiveSetlist({
     };
   }, []);
 
-  // Keyboard navigation when in lyrics presentation mode
+  // Keyboard navigation when in presentation mode
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (activeLyricsIndex !== null && concert?.setlist) {
+      if (activePresentation !== null && concert?.setlist) {
         if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") {
-          if (activeLyricsIndex < concert.setlist.length - 1) {
-            setActiveLyricsIndex((prev) => (prev !== null ? prev + 1 : null));
+          if (activePresentation.index < concert.setlist.length - 1) {
+            setActivePresentation((prev) =>
+              prev ? { ...prev, index: prev.index + 1 } : null
+            );
           }
         } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
-          if (activeLyricsIndex > 0) {
-            setActiveLyricsIndex((prev) => (prev !== null ? prev - 1 : null));
+          if (activePresentation.index > 0) {
+            setActivePresentation((prev) =>
+              prev ? { ...prev, index: prev.index - 1 } : null
+            );
           }
         } else if (e.key === "Escape") {
-          setActiveLyricsIndex(null);
+          setActivePresentation(null);
         }
       } else if (e.key === "Escape") {
         onClose();
@@ -128,7 +138,7 @@ export function ConcertLiveSetlist({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeLyricsIndex, concert?.setlist, onClose]);
+  }, [activePresentation, concert?.setlist, onClose]);
 
   const toggleFullscreen = async () => {
     try {
@@ -249,6 +259,16 @@ export function ConcertLiveSetlist({
     }
   };
 
+  const handleAddMusics = async (musicIds: string[]) => {
+    const res = await addMusicsToSetlistAction(concertId, musicIds);
+    if (res.success) {
+      const refreshed = await getConcertByIdAction(concertId);
+      if (refreshed.success && refreshed.data) {
+        setConcert(refreshed.data);
+      }
+    }
+  };
+
   if (isLoading || !concert) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/95 backdrop-blur-md">
@@ -262,102 +282,42 @@ export function ConcertLiveSetlist({
 
   const setlist = concert.setlist || [];
   const currentMusicItem: SetlistItem | undefined =
-    activeLyricsIndex !== null ? setlist[activeLyricsIndex] : undefined;
+    activePresentation !== null ? setlist[activePresentation.index] : undefined;
   const currentMusic = currentMusicItem?.music;
 
   // -------------------------------------------------------------
-  // VIEW 1: LYRICS PRESENTATION MODE (When "Ver Letra" is active)
+  // VIEW 1: STAGE PRESENTATION MODE (Lyrics & Chords Screen)
   // -------------------------------------------------------------
-  if (activeLyricsIndex !== null && currentMusic) {
-    const keyDisplay = currentMusic.preferredKey || currentMusic.originalKey;
-
+  if (activePresentation !== null && currentMusic) {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950 text-zinc-50 overflow-hidden select-none animate-in fade-in duration-150">
-        {/* Floating Controls at Top Right */}
-        <div className="fixed top-3 right-3 z-30 flex items-center gap-2">
-          {/* Fullscreen Button */}
-          <button
-            type="button"
-            onClick={toggleFullscreen}
-            className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold backdrop-blur-md shadow-lg transition-all cursor-pointer ${
-              isFullscreen
-                ? "bg-emerald-950/80 border-emerald-500/80 text-emerald-300 hover:bg-emerald-900/80"
-                : "bg-zinc-900/80 hover:bg-zinc-800/90 border-zinc-700/60 text-zinc-200 hover:text-white"
-            }`}
-            title={isFullscreen ? "Sair da tela cheia" : "Entrar em tela cheia"}
-          >
-            <span>⛶</span>
-            <span>{isFullscreen ? "Tela Cheia: ON" : "Tela Cheia"}</span>
-          </button>
-
-          {/* Close Button */}
-          <button
-            type="button"
-            onClick={() => setActiveLyricsIndex(null)}
-            className="flex items-center gap-1.5 rounded-full bg-zinc-900/80 hover:bg-zinc-800/90 border border-zinc-700/60 px-3.5 py-1.5 text-xs font-bold text-zinc-200 hover:text-white backdrop-blur-md shadow-lg transition-all cursor-pointer"
-            title="Fechar letra e voltar ao setlist"
-          >
-            <span>✕</span>
-            <span>Fechar</span>
-          </button>
-        </div>
-
-        {/* Main Lyrics Area (Full Height, No Top or Bottom Bar) */}
-        <main className="flex-1 overflow-y-auto px-4 sm:px-12 pt-4 pb-24 max-w-4xl mx-auto w-full">
-          {/* In-flow Song Information Header (scrolls with content) */}
-          <div className="mb-4 pb-3 border-b border-zinc-800/70 flex items-center justify-between gap-3 pr-44 sm:pr-52">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-500 font-black text-zinc-950 text-xs shrink-0">
-                  #{activeLyricsIndex + 1}
-                </span>
-                <h1 className="text-base sm:text-lg font-black text-zinc-100 truncate tracking-tight">
-                  {currentMusic.title}
-                </h1>
-                {keyDisplay && (
-                  <span className="rounded-md bg-emerald-950 border border-emerald-500/70 px-2 py-0.5 font-mono font-bold text-xs text-emerald-400">
-                    {keyDisplay}
-                  </span>
-                )}
-              </div>
-              <span className="text-[11px] sm:text-xs text-zinc-400 truncate block mt-0.5">
-                {currentMusic.artist} • <span className="text-zinc-500">{concert.title}</span>
-              </span>
-            </div>
-          </div>
-
-          {/* Note Banner */}
-          {currentMusic.note && (
-            <div className="mb-4 rounded-xl bg-amber-950/40 border border-amber-800/80 p-2.5 sm:p-3 text-xs sm:text-sm text-amber-200 shadow-sm">
-              <span className="font-extrabold uppercase tracking-wider text-[10px] sm:text-xs block mb-0.5 text-amber-400">
-                💬 Observação:
-              </span>
-              {currentMusic.note}
-            </div>
-          )}
-
-          <LyricsViewer lyrics={currentMusic.lyrics || ""} fontSize={fontSize} />
-        </main>
-
-        {/* Floating PROXIMA Button at the Bottom (No bar background) */}
-        {activeLyricsIndex < setlist.length - 1 && (
-          <button
-            type="button"
-            onClick={() => setActiveLyricsIndex((prev) => (prev !== null ? prev + 1 : null))}
-            className="fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-6 py-3 text-xs sm:text-sm font-black shadow-2xl shadow-emerald-500/30 active:scale-95 transition-all cursor-pointer"
-            title="Próxima música do setlist"
-          >
-            <span>PRÓXIMA</span>
-            <span>▶</span>
-          </button>
-        )}
-      </div>
+      <ConcertPresentationMode
+        setlist={setlist}
+        initialIndex={activePresentation.index}
+        initialMode={activePresentation.mode}
+        concertTitle={concert.title}
+        onClose={() => setActivePresentation(null)}
+      />
     );
   }
 
   // -------------------------------------------------------------
   // VIEW 2: LIVE SETLIST SONG LISTING (Main stage overview)
   // -------------------------------------------------------------
+  const filteredSetlist = setlist.filter((item) => {
+    if (!searchTerm.trim()) return true;
+    const q = searchTerm.toLowerCase();
+    const music = item.music;
+    if (!music) return false;
+    return (
+      music.title.toLowerCase().includes(q) ||
+      music.artist.toLowerCase().includes(q) ||
+      (music.preferredKey && music.preferredKey.toLowerCase().includes(q)) ||
+      (music.originalKey && music.originalKey.toLowerCase().includes(q)) ||
+      (item.note && item.note.toLowerCase().includes(q)) ||
+      (music.note && music.note.toLowerCase().includes(q))
+    );
+  });
+
   const scheduleFormatted =
     concert.startTime || concert.finishTime
       ? `${concert.startTime || "--:--"} às ${concert.finishTime || "--:--"}`
@@ -438,15 +398,63 @@ export function ConcertLiveSetlist({
 
       {/* Main Setlist List Container */}
       <main className="flex-1 overflow-y-auto px-3 sm:px-8 py-5 max-w-4xl mx-auto w-full">
+        {/* Search Bar & Add Music Button */}
+        <div className="flex items-center gap-2.5 mb-4 flex-wrap">
+          <div className="relative flex-1 min-w-[200px]">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500 text-sm pointer-events-none">
+              🔍
+            </span>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar música no setlist (título, artista, tom)..."
+              className="w-full rounded-xl bg-zinc-900 border border-zinc-700/80 pl-9 pr-8 py-2 text-xs sm:text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-200 p-0.5 rounded text-xs cursor-pointer"
+                title="Limpar busca"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsAddModalOpen(true)}
+            className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-bold px-3.5 py-2 text-xs sm:text-sm flex items-center gap-1.5 shrink-0 transition-all cursor-pointer shadow-sm active:scale-95"
+            title="Buscar músicas no repertório completo e adicionar ao setlist"
+          >
+            <span>➕</span>
+            <span>Buscar no Repertório</span>
+          </button>
+        </div>
+
         {/* Setlist Summary Bar */}
         <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-zinc-800/80 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <span className="text-xs sm:text-sm font-bold text-zinc-200">
-              Músicas ({setlist.length})
+              {searchTerm.trim() ? (
+                <>
+                  Músicas Filtradas ({filteredSetlist.length} de {setlist.length})
+                </>
+              ) : (
+                <>Músicas ({setlist.length})</>
+              )}
             </span>
-            <span className="text-zinc-500 text-xs hidden sm:inline">
-              • Segure ⠿ para reordenar
-            </span>
+            {searchTerm.trim() ? (
+              <span className="text-amber-400/90 text-xs font-medium">
+                • Filtro ativo
+              </span>
+            ) : (
+              <span className="text-zinc-500 text-xs hidden sm:inline">
+                • Segure ⠿ para reordenar
+              </span>
+            )}
           </div>
         </div>
 
@@ -458,29 +466,63 @@ export function ConcertLiveSetlist({
               O setlist deste show está vazio
             </h3>
             <p className="text-xs text-zinc-500 mt-1 max-w-md mx-auto">
-              Adicione músicas a este show através do botão &quot;Ver Dados&quot; na lista de apresentações para visualizá-las aqui durante a apresentação.
+              Adicione músicas diretamente do seu acervo musical para visualizá-las durante o show.
             </p>
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(true)}
+                className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-bold px-4 py-2 text-xs sm:text-sm inline-flex items-center gap-2 transition-all cursor-pointer shadow-lg shadow-emerald-600/10"
+              >
+                <span>➕</span>
+                <span>Buscar e Adicionar Músicas</span>
+              </button>
+            </div>
+          </div>
+        ) : filteredSetlist.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-zinc-800 bg-zinc-900/30 p-8 sm:p-12 text-center my-6">
+            <div className="text-3xl mb-3 text-zinc-600">🔍</div>
+            <h3 className="text-base font-semibold text-zinc-300">
+              Nenhuma música encontrada no setlist atual
+            </h3>
+            <p className="text-xs text-zinc-500 mt-1 max-w-md mx-auto">
+              Não encontramos &quot;{searchTerm}&quot; entre as músicas deste show.
+            </p>
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(true)}
+                className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-bold px-4 py-2 text-xs sm:text-sm inline-flex items-center gap-2 transition-all cursor-pointer shadow-lg shadow-emerald-600/10"
+              >
+                <span>➕</span>
+                <span>Buscar &quot;{searchTerm}&quot; no Repertório Geral</span>
+              </button>
+            </div>
           </div>
         ) : (
           <div className="flex flex-col gap-1.5">
-            {setlist.map((item, index) => {
+            {filteredSetlist.map((item, index) => {
               const music = item.music;
               if (!music) return null;
+              const originalIndex = setlist.findIndex((it) => it.id === item.id);
+              const displayIndex = originalIndex !== -1 ? originalIndex : index;
               const keyDisplay = music.preferredKey || music.originalKey;
               const noteText = music.note || item.note;
               const hasLyrics = Boolean(music.lyrics && music.lyrics.trim());
-              const isDragging = draggedIndex === index;
-              const isDragOver = dragOverIndex === index;
+              const hasChords = Boolean(music.chords && music.chords.trim());
+              const isDragging = draggedIndex === displayIndex;
+              const isDragOver = dragOverIndex === displayIndex;
+              const canDrag = !searchTerm.trim();
 
               return (
                 <div
                   key={item.id}
-                  data-setlist-index={index}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, index)}
-                  onDragOver={(e) => handleDragOver(e, index)}
-                  onDrop={(e) => handleDrop(e, index)}
-                  onDragEnd={handleDragEnd}
+                  data-setlist-index={displayIndex}
+                  draggable={canDrag}
+                  onDragStart={canDrag ? (e) => handleDragStart(e, displayIndex) : undefined}
+                  onDragOver={canDrag ? (e) => handleDragOver(e, displayIndex) : undefined}
+                  onDrop={canDrag ? (e) => handleDrop(e, displayIndex) : undefined}
+                  onDragEnd={canDrag ? handleDragEnd : undefined}
                   className={`flex items-center justify-between py-2 px-2.5 sm:px-3 rounded-xl border transition-all gap-2 group select-none ${
                     isDragging
                       ? "opacity-30 border-2 border-dashed border-emerald-500 bg-zinc-950/60"
@@ -489,29 +531,41 @@ export function ConcertLiveSetlist({
                       : "border-zinc-800/80 bg-zinc-900/70 hover:bg-zinc-900 hover:border-zinc-700/80"
                   }`}
                 >
-                  {/* Left: Drag Handle, Number and Music Title (bigger letters, single line, truncate if too long) */}
+                  {/* Left: Drag Handle, Number and Music Title */}
                   <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
                     {/* Drag Handle (Hold and Slide) */}
-                    <div
-                      onTouchStart={() => handleTouchStart(index)}
-                      onTouchMove={handleTouchMove}
-                      onTouchEnd={handleTouchEnd}
-                      className="cursor-grab active:cursor-grabbing text-zinc-500 hover:text-zinc-200 select-none text-base sm:text-lg px-0.5 py-0.5 shrink-0 touch-none"
-                      title="Segure e deslize para reordenar"
-                    >
-                      ⠿
-                    </div>
+                    {canDrag ? (
+                      <div
+                        onTouchStart={() => handleTouchStart(displayIndex)}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
+                        className="cursor-grab active:cursor-grabbing text-zinc-500 hover:text-zinc-200 select-none text-base sm:text-lg px-0.5 py-0.5 shrink-0 touch-none"
+                        title="Segure e deslize para reordenar"
+                      >
+                        ⠿
+                      </div>
+                    ) : (
+                      <span className="text-zinc-600 text-xs px-1" title="Reordenação desativada durante a busca">•</span>
+                    )}
 
                     {/* Order number */}
                     <span className="font-extrabold text-xs sm:text-sm text-zinc-400 shrink-0 w-6 text-center">
-                      #{index + 1}
+                      #{displayIndex + 1}
                     </span>
 
-                    {/* Music Title (bigger letters, emphasis, single row, hide excess with truncate) */}
+                    {/* Music Title */}
                     <span
-                      onClick={() => hasLyrics && setActiveLyricsIndex(index)}
-                      className={`font-bold text-base sm:text-lg text-zinc-100 truncate tracking-tight cursor-pointer hover:text-emerald-400 transition-colors ${
-                        !hasLyrics ? "cursor-default hover:text-zinc-100" : ""
+                      onClick={() => {
+                        if (hasLyrics) {
+                          setActivePresentation({ index: displayIndex, mode: "lyrics" });
+                        } else if (hasChords) {
+                          setActivePresentation({ index: displayIndex, mode: "chords" });
+                        }
+                      }}
+                      className={`font-bold text-base sm:text-lg text-zinc-100 truncate tracking-tight ${
+                        hasLyrics || hasChords
+                          ? "cursor-pointer hover:text-emerald-400 transition-colors"
+                          : "cursor-default hover:text-zinc-100"
                       }`}
                       title={music.title}
                     >
@@ -519,7 +573,7 @@ export function ConcertLiveSetlist({
                     </span>
                   </div>
 
-                  {/* Right: Tune (Tom), Notes & Compact "Letra" Button */}
+                  {/* Right: Tune (Tom), Notes & Dedicated "Letra" and "Cifra" Buttons */}
                   <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                     {/* Note / Observação badge (if present) */}
                     {noteText && (
@@ -538,19 +592,36 @@ export function ConcertLiveSetlist({
                       </span>
                     )}
 
-                    {/* Compact "Letra" Button */}
+                    {/* Dedicated "Letra" Button */}
                     {hasLyrics ? (
                       <button
                         type="button"
-                        onClick={() => setActiveLyricsIndex(index)}
+                        onClick={() => setActivePresentation({ index: displayIndex, mode: "lyrics" })}
                         className="rounded-lg bg-emerald-500/15 border border-emerald-500/40 px-2.5 py-1 text-xs font-bold text-emerald-400 hover:bg-emerald-500 hover:text-zinc-950 transition-all active:scale-95 cursor-pointer shrink-0"
-                        title="Ver letra"
+                        title="Ver letra desta música no palco"
                       >
                         Letra
                       </button>
                     ) : (
-                      <span className="rounded-lg bg-zinc-800/80 border border-zinc-700/50 px-2 py-1 text-[10px] font-medium text-zinc-500 shrink-0">
+                      <span className="rounded-lg bg-zinc-800/50 border border-zinc-700/30 px-2 py-1 text-[10px] font-medium text-zinc-600 shrink-0 hidden sm:inline">
                         Sem letra
+                      </span>
+                    )}
+
+                    {/* Dedicated "Cifra" Button */}
+                    {hasChords ? (
+                      <button
+                        type="button"
+                        onClick={() => setActivePresentation({ index: displayIndex, mode: "chords" })}
+                        className="rounded-lg bg-amber-500/15 border border-amber-500/40 px-2.5 py-1 text-xs font-bold text-amber-400 hover:bg-amber-500 hover:text-zinc-950 transition-all active:scale-95 cursor-pointer shrink-0 flex items-center gap-1"
+                        title="Ver cifra desta música no palco"
+                      >
+                        <span>🎸</span>
+                        <span>Cifra</span>
+                      </button>
+                    ) : (
+                      <span className="rounded-lg bg-zinc-800/50 border border-zinc-700/30 px-2 py-1 text-[10px] font-medium text-zinc-600 shrink-0 hidden sm:inline">
+                        Sem cifra
                       </span>
                     )}
                   </div>
@@ -570,6 +641,16 @@ export function ConcertLiveSetlist({
           ● Ao Vivo no Palco
         </span>
       </footer>
+
+      {/* Add To Setlist Modal (Customer Repertoire) */}
+      <AddToSetlistModal
+        isOpen={isAddModalOpen}
+        existingMusicIds={new Set(setlist.map((it) => it.musicId))}
+        initialSearch={searchTerm}
+        onClose={() => setIsAddModalOpen(false)}
+        onAdd={handleAddMusics}
+      />
     </div>
   );
 }
+

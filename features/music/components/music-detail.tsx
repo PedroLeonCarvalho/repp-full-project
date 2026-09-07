@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import type { Music } from "../types";
+import type { Music, MusicalKey } from "../types";
 import { GENRE_LABELS } from "./music-filters";
 import { LyricsViewer } from "@/features/concert/components/lyrics-viewer";
+import { ChordsViewer } from "./chords-viewer";
 import { ConcertPresentationMode } from "@/features/concert/components/concert-presentation-mode";
+import { updateMusicAction } from "../actions/music-actions";
 
 interface MusicDetailProps {
   music: Music;
+  initialTab?: "lyrics" | "chords";
   onClose: () => void;
   onEdit: (music: Music) => void;
   onDelete: (id: string) => void;
@@ -15,11 +18,19 @@ interface MusicDetailProps {
 
 export function MusicDetail({
   music,
+  initialTab = "lyrics",
   onClose,
   onEdit,
   onDelete,
 }: MusicDetailProps) {
+  const hasLyrics = Boolean(music.lyrics && music.lyrics.trim());
+  const hasChords = Boolean(music.chords && music.chords.trim());
+
+  const defaultTab = initialTab || (hasLyrics ? "lyrics" : hasChords ? "chords" : "lyrics");
+  const [activeTab, setActiveTab] = useState<"lyrics" | "chords">(defaultTab);
+  const [preferredKey, setPreferredKey] = useState<MusicalKey | null>(music.preferredKey ?? null);
   const [isStageMode, setIsStageMode] = useState(false);
+  const [chordsMode, setChordsMode] = useState<"render" | "raw">("render");
 
   if (isStageMode) {
     return (
@@ -32,14 +43,26 @@ export function MusicDetail({
             position: 1,
             note: music.note,
             createdAt: new Date(),
-            music,
+            music: {
+              ...music,
+              preferredKey,
+            },
           },
         ]}
+        initialMode={activeTab}
         concertTitle="Repertório"
         onClose={() => setIsStageMode(false)}
       />
     );
   }
+
+  const handleSavePreferredKey = async (newKey: string) => {
+    const musicalKey = newKey as MusicalKey;
+    const res = await updateMusicAction(music.id, { preferredKey: musicalKey });
+    if (res.success) {
+      setPreferredKey(musicalKey);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 overflow-y-auto">
@@ -51,9 +74,9 @@ export function MusicDetail({
               <h2 className="text-xl sm:text-2xl font-bold text-zinc-50 tracking-tight">
                 {music.title}
               </h2>
-              {music.preferredKey && (
+              {preferredKey && (
                 <span className="inline-flex items-center rounded-lg bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 text-xs font-bold text-emerald-300">
-                  {music.preferredKey}
+                  {preferredKey}
                 </span>
               )}
             </div>
@@ -62,14 +85,15 @@ export function MusicDetail({
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {music.lyrics && (
+            {(hasLyrics || hasChords) && (
               <button
                 type="button"
                 onClick={() => setIsStageMode(true)}
-                className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-3 py-1.5 text-xs font-bold text-emerald-300 hover:bg-emerald-500/25 transition-all active:scale-95 cursor-pointer"
-                title="Abrir em tela cheia otimizada para leitura"
+                className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-3 py-1.5 text-xs font-bold text-emerald-300 hover:bg-emerald-500/25 transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+                title="Abrir em tela cheia otimizada para leitura no palco"
               >
-                ⛶ Tela Cheia
+                <span>⛶</span>
+                <span>Tela Cheia</span>
               </button>
             )}
             <button
@@ -101,7 +125,7 @@ export function MusicDetail({
           <div className="flex flex-wrap items-center gap-2">
             {music.originalKey && (
               <span className="inline-flex items-center gap-1 rounded-lg bg-zinc-800 border border-zinc-700 px-2.5 py-1 text-xs text-zinc-300">
-                {music.originalKey}
+                Tom Original: {music.originalKey}
               </span>
             )}
             {music.genre && (
@@ -147,40 +171,157 @@ export function MusicDetail({
             </div>
           )}
 
-          {/* Lyrics / Chords Box with Note at top header */}
-          <div className="rounded-2xl bg-zinc-950 p-4 sm:p-5 border border-zinc-800/80 shadow-inner">
-            <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2.5 mb-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-                Letra & Cifra
-              </span>
-              {music.preferredKey && (
-                <span className="text-xs font-mono font-bold text-emerald-400">
-                  {music.preferredKey}
+          {/* Tab Navigation: Letra / Cifra */}
+          <div className="flex items-center gap-2 border-b border-zinc-800 pb-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab("lyrics")}
+              className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
+                activeTab === "lyrics"
+                  ? "bg-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/20"
+                  : "bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+              }`}
+            >
+              <span>📝</span>
+              <span>Letra</span>
+              {hasLyrics && (
+                <span
+                  className={`ml-1 rounded-full px-1.5 py-0.2 text-[10px] font-black ${
+                    activeTab === "lyrics" ? "bg-zinc-950/30 text-zinc-950" : "bg-emerald-500/20 text-emerald-400"
+                  }`}
+                >
+                  ✓
                 </span>
               )}
-            </div>
+            </button>
 
-            {/* Complete Note in header of lyrics */}
-            {music.note && (
-              <div className="mb-4 rounded-xl bg-zinc-900/90 border border-emerald-500/30 p-3 text-xs text-zinc-200">
-                <span className="font-semibold text-emerald-400 flex items-center gap-1 mb-1">
-                  <span>💬</span> Observações:
+            <button
+              type="button"
+              onClick={() => setActiveTab("chords")}
+              className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
+                activeTab === "chords"
+                  ? "bg-amber-500 text-zinc-950 shadow-md shadow-amber-500/20"
+                  : "bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+              }`}
+            >
+              <span>🎸</span>
+              <span>Cifra</span>
+              {hasChords && (
+                <span
+                  className={`ml-1 rounded-full px-1.5 py-0.2 text-[10px] font-black ${
+                    activeTab === "chords" ? "bg-zinc-950/30 text-zinc-950" : "bg-amber-500/20 text-amber-400"
+                  }`}
+                >
+                  ✓
                 </span>
-                <p className="whitespace-pre-wrap leading-relaxed text-zinc-300 font-sans">
-                  {music.note}
-                </p>
-              </div>
-            )}
-
-            {/* Structured Lyrics with Paragraph recognition */}
-            {music.lyrics ? (
-              <LyricsViewer lyrics={music.lyrics} fontSize="normal" />
-            ) : (
-              <p className="text-xs text-zinc-500 italic py-4">
-                Nenhuma letra cadastrada para esta música.
-              </p>
-            )}
+              )}
+            </button>
           </div>
+
+          {/* Observations / Notes */}
+          {music.note && (
+            <div className="rounded-xl bg-zinc-950/80 border border-emerald-500/30 p-3 text-xs text-zinc-200">
+              <span className="font-semibold text-emerald-400 flex items-center gap-1 mb-1">
+                <span>💬</span> Observações:
+              </span>
+              <p className="whitespace-pre-wrap leading-relaxed text-zinc-300 font-sans">
+                {music.note}
+              </p>
+            </div>
+          )}
+
+          {/* Active Tab View */}
+          {activeTab === "lyrics" ? (
+            /* LYRICS VIEW */
+            <div className="rounded-2xl bg-zinc-950 p-4 sm:p-5 border border-zinc-800/80 shadow-inner">
+              <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2.5 mb-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                  <span>📝</span> Letra da Música
+                </span>
+                {preferredKey && (
+                  <span className="text-xs font-mono font-bold text-emerald-400">
+                    Tom: {preferredKey}
+                  </span>
+                )}
+              </div>
+
+              {hasLyrics ? (
+                <LyricsViewer lyrics={music.lyrics || ""} fontSize="normal" />
+              ) : (
+                <div className="py-8 text-center text-zinc-500">
+                  <p className="text-xs italic">Nenhuma letra cadastrada para esta música.</p>
+                  {hasChords && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("chords")}
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 px-3 py-1.5 text-xs font-bold hover:bg-amber-500/30 transition-colors"
+                    >
+                      <span>🎸 Ver Cifra Disponível</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            /* CHORDS VIEW */
+            <div className="rounded-2xl bg-zinc-950 p-4 sm:p-5 border border-zinc-800/80 shadow-inner">
+              <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2.5 mb-3 flex-wrap gap-2">
+                <span className="text-xs font-semibold text-amber-400 flex items-center gap-1.5">
+                  <span>🎸</span> Cifra / Acordes
+                </span>
+                {hasChords && (
+                  <div className="flex items-center gap-1 rounded-lg bg-zinc-800 border border-zinc-700 p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setChordsMode("render")}
+                      className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors cursor-pointer ${
+                        chordsMode === "render"
+                          ? "bg-zinc-700 text-zinc-100"
+                          : "text-zinc-400 hover:text-zinc-200"
+                      }`}
+                    >
+                      Formatado
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setChordsMode("raw")}
+                      className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors cursor-pointer ${
+                        chordsMode === "raw"
+                          ? "bg-zinc-700 text-zinc-100"
+                          : "text-zinc-400 hover:text-zinc-200"
+                      }`}
+                    >
+                      Texto Bruto
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {hasChords ? (
+                <ChordsViewer
+                  chords={music.chords || ""}
+                  originalKey={music.originalKey}
+                  preferredKey={preferredKey}
+                  fontSize="normal"
+                  mode={chordsMode}
+                  onSavePreferredKey={handleSavePreferredKey}
+                />
+              ) : (
+                <div className="py-8 text-center text-zinc-500">
+                  <p className="text-xs italic">Nenhuma cifra cadastrada para esta música.</p>
+                  {hasLyrics && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("lyrics")}
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-3 py-1.5 text-xs font-bold hover:bg-emerald-500/30 transition-colors"
+                    >
+                      <span>📝 Ver Letra Disponível</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer Actions */}
@@ -213,3 +354,4 @@ export function MusicDetail({
     </div>
   );
 }
+

@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import type { SetlistItem } from "../types";
 import { LyricsViewer } from "./lyrics-viewer";
+import { ChordsViewer } from "@/features/music/components/chords-viewer";
 
 interface ConcertPresentationModeProps {
   setlist: SetlistItem[];
   initialIndex?: number;
+  initialMode?: "lyrics" | "chords";
   concertTitle: string;
   onClose: () => void;
 }
@@ -14,10 +16,13 @@ interface ConcertPresentationModeProps {
 export function ConcertPresentationMode({
   setlist,
   initialIndex = 0,
+  initialMode = "lyrics",
   concertTitle,
   onClose,
 }: ConcertPresentationModeProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [viewMode, setViewMode] = useState<"lyrics" | "chords">(initialMode);
+  const [chordsMode, setChordsMode] = useState<"render" | "raw">("render");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const fontSize = "large" as const;
 
@@ -26,14 +31,23 @@ export function ConcertPresentationMode({
 
   // Request Fullscreen & Keep Screen Awake (WakeLock)
   useEffect(() => {
-    // 1. Auto request Fullscreen on mobile/desktop
     const enterFullscreen = async () => {
       try {
         if (!document.fullscreenElement) {
           if (document.documentElement.requestFullscreen) {
             await document.documentElement.requestFullscreen();
-          } else if ((document.documentElement as unknown as { webkitRequestFullscreen?: () => Promise<void> }).webkitRequestFullscreen) {
-            await (document.documentElement as unknown as { webkitRequestFullscreen: () => Promise<void> }).webkitRequestFullscreen();
+          } else if (
+            (
+              document.documentElement as unknown as {
+                webkitRequestFullscreen?: () => Promise<void>;
+              }
+            ).webkitRequestFullscreen
+          ) {
+            await (
+              document.documentElement as unknown as {
+                webkitRequestFullscreen: () => Promise<void>;
+              }
+            ).webkitRequestFullscreen();
           }
         }
       } catch {
@@ -50,12 +64,18 @@ export function ConcertPresentationMode({
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
 
-    // 2. Keep Screen Awake on mobile
+    // Keep Screen Awake on mobile
     let wakeLockSentinel: { release: () => Promise<void> } | null = null;
     const requestWakeLock = async () => {
       try {
         if ("wakeLock" in navigator) {
-          wakeLockSentinel = await (navigator as unknown as { wakeLock: { request: (type: string) => Promise<{ release: () => Promise<void> }> } }).wakeLock.request("screen");
+          wakeLockSentinel = await (
+            navigator as unknown as {
+              wakeLock: {
+                request: (type: string) => Promise<{ release: () => Promise<void> }>;
+              };
+            }
+          ).wakeLock.request("screen");
         }
       } catch {
         // WakeLock optional
@@ -143,11 +163,68 @@ export function ConcertPresentationMode({
   }
 
   const keyDisplay = music.preferredKey || music.originalKey;
+  const hasLyrics = Boolean(music.lyrics && music.lyrics.trim());
+  const hasChords = Boolean(music.chords && music.chords.trim());
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black text-zinc-50 overflow-hidden select-none">
       {/* Floating Controls at Top Right */}
-      <div className="fixed top-3 right-3 z-30 flex items-center gap-2">
+      <div className="fixed top-3 right-3 z-30 flex items-center gap-2 flex-wrap justify-end">
+        {/* View Mode Switcher: Letra / Cifra */}
+        <div className="flex items-center rounded-full bg-zinc-900/90 border border-zinc-700/70 p-0.5 backdrop-blur-md shadow-lg">
+          <button
+            type="button"
+            onClick={() => setViewMode("lyrics")}
+            className={`rounded-full px-3 py-1 text-xs font-bold transition-all cursor-pointer ${
+              viewMode === "lyrics"
+                ? "bg-emerald-500 text-zinc-950 shadow-sm"
+                : "text-zinc-400 hover:text-zinc-200"
+            }`}
+          >
+            Letra
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("chords")}
+            className={`rounded-full px-3 py-1 text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+              viewMode === "chords"
+                ? "bg-amber-500 text-zinc-950 shadow-sm"
+                : "text-zinc-400 hover:text-zinc-200"
+            }`}
+          >
+            <span>🎸</span>
+            <span>Cifra</span>
+          </button>
+        </div>
+
+        {/* Chords Render Mode Toggle (Only visible in chords mode) */}
+        {viewMode === "chords" && hasChords && (
+          <div className="hidden sm:flex items-center rounded-full bg-zinc-900/90 border border-zinc-700/70 p-0.5 backdrop-blur-md shadow-lg">
+            <button
+              type="button"
+              onClick={() => setChordsMode("render")}
+              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all cursor-pointer ${
+                chordsMode === "render"
+                  ? "bg-zinc-700 text-zinc-100"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              Formatado
+            </button>
+            <button
+              type="button"
+              onClick={() => setChordsMode("raw")}
+              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all cursor-pointer ${
+                chordsMode === "raw"
+                  ? "bg-zinc-700 text-zinc-100"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              Texto
+            </button>
+          </div>
+        )}
+
         {/* Fullscreen Button */}
         <button
           type="button"
@@ -160,7 +237,7 @@ export function ConcertPresentationMode({
           title={isFullscreen ? "Sair da tela cheia" : "Entrar em tela cheia"}
         >
           <span>⛶</span>
-          <span>{isFullscreen ? "Tela Cheia: ON" : "Tela Cheia"}</span>
+          <span className="hidden xs:inline">{isFullscreen ? "Tela Cheia: ON" : "Tela Cheia"}</span>
         </button>
 
         {/* Close Button */}
@@ -168,17 +245,17 @@ export function ConcertPresentationMode({
           type="button"
           onClick={onClose}
           className="flex items-center gap-1.5 rounded-full bg-zinc-900/80 hover:bg-zinc-800/90 border border-zinc-700/60 px-3.5 py-1.5 text-xs font-bold text-zinc-200 hover:text-white backdrop-blur-md shadow-lg transition-all cursor-pointer"
-          title="Fechar letra e voltar ao setlist (Esc)"
+          title="Fechar e voltar (Esc)"
         >
           <span>✕</span>
           <span>Fechar</span>
         </button>
       </div>
 
-      {/* Main Lyrics Reading Area (Full Height) */}
+      {/* Main Content Area (Full Height) */}
       <main className="flex-1 overflow-y-auto px-4 sm:px-12 pt-4 pb-24 max-w-4xl mx-auto w-full">
         {/* In-flow Song Information Header (scrolls with content) */}
-        <div className="mb-4 pb-3 border-b border-zinc-800/70 flex items-center justify-between gap-3 pr-44 sm:pr-52">
+        <div className="mb-4 pb-3 border-b border-zinc-800/70 flex items-center justify-between gap-3 pr-44 sm:pr-64">
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-500 font-black text-zinc-950 text-xs shrink-0">
@@ -209,8 +286,48 @@ export function ConcertPresentationMode({
           </div>
         )}
 
-        {/* Formatted Lyrics View with Paragraphs and Chorus Highlighting */}
-        <LyricsViewer lyrics={music.lyrics || ""} fontSize={fontSize} />
+        {/* Mode Content: Lyrics or Chords */}
+        {viewMode === "lyrics" ? (
+          hasLyrics ? (
+            <LyricsViewer lyrics={music.lyrics || ""} fontSize={fontSize} />
+          ) : (
+            <div className="py-20 text-center text-zinc-500">
+              <p className="text-base font-semibold text-zinc-400">Nenhuma letra cadastrada para esta música.</p>
+              {hasChords && (
+                <button
+                  type="button"
+                  onClick={() => setViewMode("chords")}
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 px-3.5 py-1.5 text-xs font-bold hover:bg-amber-500/30 transition-colors"
+                >
+                  <span>🎸 Ver Cifra Disponível</span>
+                </button>
+              )}
+            </div>
+          )
+        ) : (
+          hasChords ? (
+            <ChordsViewer
+              chords={music.chords || ""}
+              originalKey={music.originalKey}
+              preferredKey={music.preferredKey}
+              fontSize={fontSize}
+              mode={chordsMode}
+            />
+          ) : (
+            <div className="py-20 text-center text-zinc-500">
+              <p className="text-base font-semibold text-zinc-400">Nenhuma cifra cadastrada para esta música.</p>
+              {hasLyrics && (
+                <button
+                  type="button"
+                  onClick={() => setViewMode("lyrics")}
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-3.5 py-1.5 text-xs font-bold hover:bg-emerald-500/30 transition-colors"
+                >
+                  <span>📝 Ver Letra Disponível</span>
+                </button>
+              )}
+            </div>
+          )
+        )}
       </main>
 
       {/* Floating PROXIMA Button at Bottom (No bar container) */}
@@ -228,3 +345,6 @@ export function ConcertPresentationMode({
     </div>
   );
 }
+
+
+

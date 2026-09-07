@@ -7,25 +7,29 @@ import { listMusicsAction } from "@/features/music/actions/music-actions";
 interface AddToSetlistModalProps {
   isOpen: boolean;
   existingMusicIds: Set<string>;
+  initialSearch?: string;
   onClose: () => void;
   onAdd: (musicIds: string[]) => Promise<void>;
 }
 
-export function AddToSetlistModal({
-  isOpen,
+export function AddToSetlistModal(props: AddToSetlistModalProps) {
+  if (!props.isOpen) return null;
+  return <AddToSetlistModalContent {...props} />;
+}
+
+function AddToSetlistModalContent({
   existingMusicIds,
+  initialSearch = "",
   onClose,
   onAdd,
 }: AddToSetlistModalProps) {
   const [musics, setMusics] = useState<Music[]>([]);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!isOpen) return;
-
     let isCancelled = false;
     async function load() {
       setIsLoading(true);
@@ -40,9 +44,7 @@ export function AddToSetlistModal({
     return () => {
       isCancelled = true;
     };
-  }, [isOpen]);
-
-  if (!isOpen) return null;
+  }, []);
 
   const filteredMusics = musics.filter((m) => {
     const q = search.toLowerCase();

@@ -1,6 +1,8 @@
-import { and, asc, eq, ilike, ne, or, sql } from "drizzle-orm";
+import { and, asc, eq, ilike, or } from "drizzle-orm";
 import { db } from "@/db";
-import { musics } from "@/db/schema/musics";
+import { customerMusics } from "@/db/schema/customer-musics";
+import { musicCatalog } from "@/db/schema/music-catalog";
+import { findOrCreateCatalogEntry } from "./music-catalog-service";
 import type {
   CreateMusicInput,
   Music,
@@ -22,39 +24,75 @@ export class MusicServiceError extends Error {
   }
 }
 
+/**
+ * Build a merged Music object from a joined row of customer_musics + music_catalog.
+ * Customer-level lyrics/chords take priority (Option B).
+ */
+function mergeRow(row: {
+  cm: typeof customerMusics.$inferSelect;
+  mc: typeof musicCatalog.$inferSelect;
+}): Music {
+  return {
+    id: row.cm.id,
+    musicCatalogId: row.cm.musicCatalogId,
+    customerId: row.cm.customerId,
+    title: row.mc.title,
+    artist: row.mc.artist,
+    lyrics: row.cm.lyrics ?? row.mc.lyrics,
+    chords: row.cm.chords ?? row.mc.chords,
+    originalKey: row.cm.originalKey,
+    preferredKey: row.cm.preferredKey,
+    skillLevel: row.cm.skillLevel,
+    genre: row.cm.genre,
+    note: row.cm.note,
+    spotifyLink: row.cm.spotifyLink,
+    sheetMusicFile: row.cm.sheetMusicFile,
+    createdAt: row.cm.createdAt,
+    updatedAt: row.cm.updatedAt,
+  };
+}
+
 export async function createMusic(
   input: CreateMusicInput,
   customerId: string
 ): Promise<Music> {
   const validated = createMusicSchema.parse(input);
 
-  // Business rule 5: Uniqueness scoped to Customer (customerId, title, artist)
+  // 1. Find or create canonical catalog entry
+  const catalogEntry = await findOrCreateCatalogEntry(
+    validated.title,
+    validated.artist,
+    validated.lyrics,
+    validated.chords
+  );
+
+  // 2. Check for duplicate customer music pointing to same catalog entry
   const [existing] = await db
     .select()
-    .from(musics)
+    .from(customerMusics)
     .where(
       and(
-        eq(musics.customerId, customerId),
-        sql`lower(${musics.title}) = lower(${validated.title})`,
-        sql`lower(${musics.artist}) = lower(${validated.artist})`
+        eq(customerMusics.customerId, customerId),
+        eq(customerMusics.musicCatalogId, catalogEntry.id)
       )
     )
     .limit(1);
 
   if (existing) {
     throw new MusicServiceError(
-      `A música "${validated.title}" do artista "${validated.artist}" já está cadastrada no seu acervo.`,
+      `A música "${catalogEntry.title}" do artista "${catalogEntry.artist}" já está cadastrada no seu acervo.`,
       "DUPLICATE_MUSIC"
     );
   }
 
+  // 3. Insert customer music record
   const [created] = await db
-    .insert(musics)
+    .insert(customerMusics)
     .values({
       customerId,
-      title: validated.title,
-      artist: validated.artist,
+      musicCatalogId: catalogEntry.id,
       lyrics: validated.lyrics || null,
+      chords: validated.chords || null,
       originalKey: validated.originalKey || null,
       preferredKey: validated.preferredKey || null,
       skillLevel: validated.skillLevel ?? true,
@@ -65,7 +103,7 @@ export async function createMusic(
     })
     .returning();
 
-  return created;
+  return mergeRow({ cm: created, mc: catalogEntry });
 }
 
 export async function updateMusic(
@@ -75,10 +113,11 @@ export async function updateMusic(
 ): Promise<Music> {
   const validated = updateMusicSchema.parse({ ...input, id });
 
+  // Verify ownership
   const [current] = await db
     .select()
-    .from(musics)
-    .where(and(eq(musics.id, id), eq(musics.customerId, customerId)))
+    .from(customerMusics)
+    .where(and(eq(customerMusics.id, id), eq(customerMusics.customerId, customerId)))
     .limit(1);
 
   if (!current) {
@@ -88,66 +127,31 @@ export async function updateMusic(
     );
   }
 
-  const newTitle = validated.title ?? current.title;
-  const newArtist = validated.artist ?? current.artist;
-
-  const isTitleChanged =
-    validated.title !== undefined &&
-    validated.title.trim().toLowerCase() !== current.title.trim().toLowerCase();
-  const isArtistChanged =
-    validated.artist !== undefined &&
-    validated.artist.trim().toLowerCase() !== current.artist.trim().toLowerCase();
-
-  if (isTitleChanged || isArtistChanged) {
-    const [conflict] = await db
-      .select()
-      .from(musics)
-      .where(
-        and(
-          eq(musics.customerId, customerId),
-          ne(musics.id, id),
-          sql`lower(${musics.title}) = lower(${newTitle})`,
-          sql`lower(${musics.artist}) = lower(${newArtist})`
-        )
-      )
-      .limit(1);
-
-    if (conflict) {
-      throw new MusicServiceError(
-        `Já existe outra música cadastrada com o título "${newTitle}" e artista "${newArtist}".`,
-        "DUPLICATE_MUSIC"
-      );
-    }
-  }
-
+  // Update only personal fields (title/artist are immutable)
   const [updated] = await db
-    .update(musics)
+    .update(customerMusics)
     .set({
-      ...(validated.title !== undefined ? { title: validated.title } : {}),
-      ...(validated.artist !== undefined ? { artist: validated.artist } : {}),
       ...(validated.lyrics !== undefined ? { lyrics: validated.lyrics } : {}),
-      ...(validated.originalKey !== undefined
-        ? { originalKey: validated.originalKey }
-        : {}),
-      ...(validated.preferredKey !== undefined
-        ? { preferredKey: validated.preferredKey }
-        : {}),
-      ...(validated.skillLevel !== undefined
-        ? { skillLevel: validated.skillLevel }
-        : {}),
+      ...(validated.chords !== undefined ? { chords: validated.chords } : {}),
+      ...(validated.originalKey !== undefined ? { originalKey: validated.originalKey } : {}),
+      ...(validated.preferredKey !== undefined ? { preferredKey: validated.preferredKey } : {}),
+      ...(validated.skillLevel !== undefined ? { skillLevel: validated.skillLevel } : {}),
       ...(validated.genre !== undefined ? { genre: validated.genre } : {}),
       ...(validated.note !== undefined ? { note: validated.note } : {}),
-      ...(validated.spotifyLink !== undefined
-        ? { spotifyLink: validated.spotifyLink }
-        : {}),
-      ...(validated.sheetMusicFile !== undefined
-        ? { sheetMusicFile: validated.sheetMusicFile }
-        : {}),
+      ...(validated.spotifyLink !== undefined ? { spotifyLink: validated.spotifyLink } : {}),
+      ...(validated.sheetMusicFile !== undefined ? { sheetMusicFile: validated.sheetMusicFile } : {}),
     })
-    .where(and(eq(musics.id, id), eq(musics.customerId, customerId)))
+    .where(and(eq(customerMusics.id, id), eq(customerMusics.customerId, customerId)))
     .returning();
 
-  return updated;
+  // Fetch catalog data to merge
+  const [catalog] = await db
+    .select()
+    .from(musicCatalog)
+    .where(eq(musicCatalog.id, updated.musicCatalogId))
+    .limit(1);
+
+  return mergeRow({ cm: updated, mc: catalog });
 }
 
 export async function deleteMusic(
@@ -155,9 +159,9 @@ export async function deleteMusic(
   customerId: string
 ): Promise<{ success: true }> {
   const result = await db
-    .delete(musics)
-    .where(and(eq(musics.id, id), eq(musics.customerId, customerId)))
-    .returning({ id: musics.id });
+    .delete(customerMusics)
+    .where(and(eq(customerMusics.id, id), eq(customerMusics.customerId, customerId)))
+    .returning({ id: customerMusics.id });
 
   if (result.length === 0) {
     throw new MusicServiceError(
@@ -173,51 +177,71 @@ export async function getMusicById(
   id: string,
   customerId: string
 ): Promise<Music | null> {
-  const [item] = await db
-    .select()
-    .from(musics)
-    .where(and(eq(musics.id, id), eq(musics.customerId, customerId)))
+  const rows = await db
+    .select({
+      cm: customerMusics,
+      mc: musicCatalog,
+    })
+    .from(customerMusics)
+    .innerJoin(musicCatalog, eq(customerMusics.musicCatalogId, musicCatalog.id))
+    .where(
+      and(
+        eq(customerMusics.id, id),
+        eq(customerMusics.customerId, customerId)
+      )
+    )
     .limit(1);
 
-  return item || null;
+  if (rows.length === 0) return null;
+
+  return mergeRow(rows[0]);
 }
 
 export async function listMusics(
   customerId: string,
   filters?: MusicFilter
 ): Promise<Music[]> {
-  const conditions = [eq(musics.customerId, customerId)];
+  const conditions = [eq(customerMusics.customerId, customerId)];
 
   if (filters?.search && filters.search.trim().length > 0) {
     const term = `%${filters.search.trim()}%`;
     conditions.push(
-      or(ilike(musics.title, term), ilike(musics.artist, term))!
+      or(
+        ilike(musicCatalog.title, term),
+        ilike(musicCatalog.artist, term)
+      )!
     );
   }
 
   if (filters?.genre) {
-    conditions.push(eq(musics.genre, filters.genre));
+    conditions.push(eq(customerMusics.genre, filters.genre));
   }
 
   if (filters?.originalKey) {
-    conditions.push(eq(musics.originalKey, filters.originalKey));
+    conditions.push(eq(customerMusics.originalKey, filters.originalKey));
   }
 
   if (filters?.preferredKey) {
-    conditions.push(eq(musics.preferredKey, filters.preferredKey));
+    conditions.push(eq(customerMusics.preferredKey, filters.preferredKey));
   }
 
   if (filters?.skillLevel !== undefined) {
-    conditions.push(eq(musics.skillLevel, filters.skillLevel));
+    conditions.push(eq(customerMusics.skillLevel, filters.skillLevel));
   }
 
   if (filters?.artist && filters.artist.trim().length > 0) {
-    conditions.push(ilike(musics.artist, `%${filters.artist.trim()}%`));
+    conditions.push(ilike(musicCatalog.artist, `%${filters.artist.trim()}%`));
   }
 
-  return db
-    .select()
-    .from(musics)
+  const rows = await db
+    .select({
+      cm: customerMusics,
+      mc: musicCatalog,
+    })
+    .from(customerMusics)
+    .innerJoin(musicCatalog, eq(customerMusics.musicCatalogId, musicCatalog.id))
     .where(and(...conditions))
-    .orderBy(asc(musics.title));
+    .orderBy(asc(musicCatalog.title));
+
+  return rows.map(mergeRow);
 }

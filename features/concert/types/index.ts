@@ -44,6 +44,7 @@ export interface PublicSharedMusic {
   preferredKey: string | null;
   originalKey: string | null;
   lyrics: string | null;
+  chords: string | null;
   spotifyLink: string | null;
 }
 

@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { PublicSharedConcert, PublicSharedSetlistItem } from "@/features/concert/types";
 import { LyricsViewer } from "@/features/concert/components/lyrics-viewer";
+import { ChordsViewer } from "@/features/music/components/chords-viewer";
 
 interface PublicSharedSetlistViewProps {
   concert: PublicSharedConcert;
@@ -13,7 +14,11 @@ interface PublicSharedSetlistViewProps {
 export function PublicSharedSetlistView({
   concert,
 }: PublicSharedSetlistViewProps) {
-  const [activeLyricsIndex, setActiveLyricsIndex] = useState<number | null>(null);
+  const [activePresentation, setActivePresentation] = useState<{
+    index: number;
+    mode: "lyrics" | "chords";
+  } | null>(null);
+  const [chordsMode, setChordsMode] = useState<"render" | "raw">("render");
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -91,19 +96,77 @@ export function PublicSharedSetlistView({
 
   const setlist = concert.setlist || [];
   const currentItem: PublicSharedSetlistItem | undefined =
-    activeLyricsIndex !== null ? setlist[activeLyricsIndex] : undefined;
+    activePresentation !== null ? setlist[activePresentation.index] : undefined;
   const currentMusic = currentItem?.music;
 
   // ---------------------------------------------------------------------------
-  // VIEW 1: IMMERSIVE LYRICS VIEW (Optimized for stage performance)
+  // VIEW 1: IMMERSIVE STAGE VIEW (Lyrics & Chords Screen)
   // ---------------------------------------------------------------------------
-  if (activeLyricsIndex !== null && currentMusic) {
+  if (activePresentation !== null && currentMusic) {
     const keyDisplay = currentMusic.preferredKey || currentMusic.originalKey;
+    const hasLyrics = Boolean(currentMusic.lyrics && currentMusic.lyrics.trim());
+    const hasChords = Boolean(currentMusic.chords && currentMusic.chords.trim());
+    const mode = activePresentation.mode;
 
     return (
       <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950 text-zinc-50 overflow-hidden select-none animate-in fade-in duration-150">
         {/* Floating Controls at Top Right */}
-        <div className="fixed top-3 right-3 z-30 flex items-center gap-2">
+        <div className="fixed top-3 right-3 z-30 flex items-center gap-2 flex-wrap justify-end">
+          {/* Switcher Letra / Cifra */}
+          <div className="flex items-center rounded-full bg-zinc-900/90 border border-zinc-700/70 p-0.5 backdrop-blur-md shadow-lg">
+            <button
+              type="button"
+              onClick={() => setActivePresentation({ ...activePresentation, mode: "lyrics" })}
+              className={`rounded-full px-3 py-1 text-xs font-bold transition-all cursor-pointer ${
+                mode === "lyrics"
+                  ? "bg-emerald-500 text-zinc-950 shadow-sm"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              Letra
+            </button>
+            <button
+              type="button"
+              onClick={() => setActivePresentation({ ...activePresentation, mode: "chords" })}
+              className={`rounded-full px-3 py-1 text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                mode === "chords"
+                  ? "bg-amber-500 text-zinc-950 shadow-sm"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              <span>🎸</span>
+              <span>Cifra</span>
+            </button>
+          </div>
+
+          {/* Chords Render Toggle */}
+          {mode === "chords" && hasChords && (
+            <div className="hidden sm:flex items-center rounded-full bg-zinc-900/90 border border-zinc-700/70 p-0.5 backdrop-blur-md shadow-lg">
+              <button
+                type="button"
+                onClick={() => setChordsMode("render")}
+                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all cursor-pointer ${
+                  chordsMode === "render"
+                    ? "bg-zinc-700 text-zinc-100"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                Formatado
+              </button>
+              <button
+                type="button"
+                onClick={() => setChordsMode("raw")}
+                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all cursor-pointer ${
+                  chordsMode === "raw"
+                    ? "bg-zinc-700 text-zinc-100"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                Texto
+              </button>
+            </div>
+          )}
+
           {/* Fullscreen Button */}
           <button
             type="button"
@@ -116,29 +179,29 @@ export function PublicSharedSetlistView({
             title={isFullscreen ? "Sair da tela cheia" : "Entrar em tela cheia"}
           >
             <span>⛶</span>
-            <span>{isFullscreen ? "Tela Cheia: ON" : "Tela Cheia"}</span>
+            <span className="hidden xs:inline">{isFullscreen ? "Tela Cheia: ON" : "Tela Cheia"}</span>
           </button>
 
           {/* Close Button */}
           <button
             type="button"
-            onClick={() => setActiveLyricsIndex(null)}
+            onClick={() => setActivePresentation(null)}
             className="flex items-center gap-1.5 rounded-full bg-zinc-900/80 hover:bg-zinc-800/90 border border-zinc-700/60 px-3.5 py-1.5 text-xs font-bold text-zinc-200 hover:text-white backdrop-blur-md shadow-lg transition-all cursor-pointer"
-            title="Fechar letra e voltar ao setlist"
+            title="Fechar e voltar ao setlist"
           >
             <span>✕</span>
             <span>Fechar</span>
           </button>
         </div>
 
-        {/* Main Lyrics Area (Full Height, No Top or Bottom Bar) */}
+        {/* Main Area (Full Height) */}
         <main className="flex-1 overflow-y-auto px-4 sm:px-12 pt-4 pb-24 max-w-4xl mx-auto w-full">
           {/* In-flow Song Information Header */}
-          <div className="mb-4 pb-3 border-b border-zinc-800/70 flex items-center justify-between gap-3 pr-44 sm:pr-52">
+          <div className="mb-4 pb-3 border-b border-zinc-800/70 flex items-center justify-between gap-3 pr-44 sm:pr-64">
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-500 font-black text-zinc-950 text-xs shrink-0">
-                  #{activeLyricsIndex + 1}
+                  #{activePresentation.index + 1}
                 </span>
                 <h1 className="text-base sm:text-lg font-black text-zinc-100 truncate tracking-tight">
                   {currentMusic.title}
@@ -165,14 +228,59 @@ export function PublicSharedSetlistView({
             </div>
           )}
 
-          <LyricsViewer lyrics={currentMusic.lyrics || ""} fontSize="large" />
+          {/* Render Lyrics or Chords based on selected mode */}
+          {mode === "lyrics" ? (
+            hasLyrics ? (
+              <LyricsViewer lyrics={currentMusic.lyrics || ""} fontSize="large" />
+            ) : (
+              <div className="py-20 text-center text-zinc-500">
+                <p className="text-base font-semibold text-zinc-400">Nenhuma letra cadastrada para esta música.</p>
+                {hasChords && (
+                  <button
+                    type="button"
+                    onClick={() => setActivePresentation({ ...activePresentation, mode: "chords" })}
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 px-3.5 py-1.5 text-xs font-bold hover:bg-amber-500/30 transition-colors"
+                  >
+                    <span>🎸 Ver Cifra Disponível</span>
+                  </button>
+                )}
+              </div>
+            )
+          ) : (
+            hasChords ? (
+              <ChordsViewer
+                chords={currentMusic.chords || ""}
+                originalKey={currentMusic.originalKey}
+                preferredKey={currentMusic.preferredKey}
+                fontSize="large"
+                mode={chordsMode}
+              />
+            ) : (
+              <div className="py-20 text-center text-zinc-500">
+                <p className="text-base font-semibold text-zinc-400">Nenhuma cifra cadastrada para esta música.</p>
+                {hasLyrics && (
+                  <button
+                    type="button"
+                    onClick={() => setActivePresentation({ ...activePresentation, mode: "lyrics" })}
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-3.5 py-1.5 text-xs font-bold hover:bg-emerald-500/30 transition-colors"
+                  >
+                    <span>📝 Ver Letra Disponível</span>
+                  </button>
+                )}
+              </div>
+            )
+          )}
         </main>
 
         {/* Floating PROXIMA Button at the Bottom */}
-        {activeLyricsIndex < setlist.length - 1 && (
+        {activePresentation.index < setlist.length - 1 && (
           <button
             type="button"
-            onClick={() => setActiveLyricsIndex((prev) => (prev !== null ? prev + 1 : null))}
+            onClick={() =>
+              setActivePresentation((prev) =>
+                prev ? { ...prev, index: prev.index + 1 } : null
+              )
+            }
             className="fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-6 py-3 text-xs sm:text-sm font-black shadow-2xl shadow-emerald-500/30 active:scale-95 transition-all cursor-pointer"
             title="Próxima música do setlist"
           >
@@ -321,14 +429,24 @@ export function PublicSharedSetlistView({
             <div className="space-y-2">
               {setlist.map((item, index) => {
                 const key = item.music.preferredKey || item.music.originalKey;
+                const hasLyrics = Boolean(item.music.lyrics && item.music.lyrics.trim());
+                const hasChords = Boolean(item.music.chords && item.music.chords.trim());
 
                 return (
                   <div
                     key={item.id}
-                    onClick={() => setActiveLyricsIndex(index)}
-                    className="group flex items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800 hover:border-zinc-700 transition-all cursor-pointer shadow-sm active:scale-[0.99]"
+                    className="group flex items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800 hover:border-zinc-700 transition-all shadow-sm"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      onClick={() => {
+                        if (hasLyrics) {
+                          setActivePresentation({ index, mode: "lyrics" });
+                        } else if (hasChords) {
+                          setActivePresentation({ index, mode: "chords" });
+                        }
+                      }}
+                      className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
+                    >
                       <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-zinc-800 font-mono font-bold text-xs text-zinc-400 group-hover:bg-emerald-500 group-hover:text-zinc-950 transition-colors shrink-0">
                         {index + 1}
                       </span>
@@ -354,13 +472,39 @@ export function PublicSharedSetlistView({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs font-semibold text-zinc-400 group-hover:text-emerald-400 transition-colors hidden xs:inline">
-                        Ver Letra
-                      </span>
-                      <span className="text-zinc-600 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all text-sm">
-                        →
-                      </span>
+                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                      {/* Letra button */}
+                      {hasLyrics ? (
+                        <button
+                          type="button"
+                          onClick={() => setActivePresentation({ index, mode: "lyrics" })}
+                          className="rounded-lg bg-emerald-500/15 border border-emerald-500/40 px-2.5 py-1 text-xs font-bold text-emerald-400 hover:bg-emerald-500 hover:text-zinc-950 transition-all active:scale-95 cursor-pointer shrink-0"
+                          title="Ver letra"
+                        >
+                          Letra
+                        </button>
+                      ) : (
+                        <span className="rounded-lg bg-zinc-800/50 border border-zinc-700/30 px-2 py-1 text-[10px] font-medium text-zinc-600 shrink-0 hidden sm:inline">
+                          Sem letra
+                        </span>
+                      )}
+
+                      {/* Cifra button */}
+                      {hasChords ? (
+                        <button
+                          type="button"
+                          onClick={() => setActivePresentation({ index, mode: "chords" })}
+                          className="rounded-lg bg-amber-500/15 border border-amber-500/40 px-2.5 py-1 text-xs font-bold text-amber-400 hover:bg-amber-500 hover:text-zinc-950 transition-all active:scale-95 cursor-pointer shrink-0 flex items-center gap-1"
+                          title="Ver cifra"
+                        >
+                          <span>🎸</span>
+                          <span>Cifra</span>
+                        </button>
+                      ) : (
+                        <span className="rounded-lg bg-zinc-800/50 border border-zinc-700/30 px-2 py-1 text-[10px] font-medium text-zinc-600 shrink-0 hidden sm:inline">
+                          Sem cifra
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
@@ -371,11 +515,11 @@ export function PublicSharedSetlistView({
       </main>
 
       {/* Floating Stage Mode Trigger Button */}
-      {setlist.length > 0 && activeLyricsIndex === null && (
+      {setlist.length > 0 && activePresentation === null && (
         <div className="fixed bottom-6 right-6 z-30">
           <button
             type="button"
-            onClick={() => setActiveLyricsIndex(0)}
+            onClick={() => setActivePresentation({ index: 0, mode: "lyrics" })}
             className="flex items-center gap-2.5 rounded-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-5 py-3 text-xs sm:text-sm font-black shadow-2xl shadow-emerald-500/40 active:scale-95 transition-all cursor-pointer"
             title="Iniciar visualizador de palco a partir da 1ª música"
           >

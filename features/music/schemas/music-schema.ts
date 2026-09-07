@@ -4,6 +4,10 @@ import { MUSICAL_KEYS, MUSIC_GENRES } from "@/db/schema/enums";
 export const musicalKeySchema = z.enum(MUSICAL_KEYS);
 export const musicGenreSchema = z.enum(MUSIC_GENRES);
 
+export const musicCatalogSearchSchema = z.object({
+  query: z.string().min(4, "Digite pelo menos 4 caracteres para buscar"),
+});
+
 export const createMusicSchema = z.object({
   title: z
     .string()
@@ -16,6 +20,7 @@ export const createMusicSchema = z.object({
     .min(1, "O artista/intérprete é obrigatório")
     .max(255, "O artista deve ter no máximo 255 caracteres"),
   lyrics: z.string().trim().optional().nullable(),
+  chords: z.string().trim().optional().nullable(),
   originalKey: musicalKeySchema.optional().nullable(),
   preferredKey: musicalKeySchema.optional().nullable(),
   skillLevel: z.boolean().default(true),
@@ -31,8 +36,24 @@ export const createMusicSchema = z.object({
   sheetMusicFile: z.string().trim().optional().nullable(),
 });
 
-export const updateMusicSchema = createMusicSchema.partial().extend({
+// Update: title and artist are excluded (immutable after creation)
+export const updateMusicSchema = z.object({
   id: z.string().uuid("ID da música inválido"),
+  lyrics: z.string().trim().optional().nullable(),
+  chords: z.string().trim().optional().nullable(),
+  originalKey: musicalKeySchema.optional().nullable(),
+  preferredKey: musicalKeySchema.optional().nullable(),
+  skillLevel: z.boolean().optional(),
+  genre: musicGenreSchema.optional().nullable(),
+  note: z.string().trim().optional().nullable(),
+  spotifyLink: z
+    .string()
+    .trim()
+    .url("Link do Spotify deve ser uma URL válida")
+    .optional()
+    .nullable()
+    .or(z.literal("")),
+  sheetMusicFile: z.string().trim().optional().nullable(),
 });
 
 export const musicFilterSchema = z.object({
@@ -47,3 +68,4 @@ export const musicFilterSchema = z.object({
 export type CreateMusicSchemaInput = z.infer<typeof createMusicSchema>;
 export type UpdateMusicSchemaInput = z.infer<typeof updateMusicSchema>;
 export type MusicFilterSchemaInput = z.infer<typeof musicFilterSchema>;
+export type MusicCatalogSearchInput = z.infer<typeof musicCatalogSearchSchema>;

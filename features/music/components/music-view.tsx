@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, useTransition } from "react";
-import type { CreateMusicInput, Music, MusicFilter } from "../types";
+import type { CreateMusicInput, Music, MusicFilter, UpdateMusicInput } from "../types";
 import {
   createMusicAction,
   deleteMusicAction,
@@ -23,7 +23,10 @@ export function MusicView() {
   // Modals state
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingMusic, setEditingMusic] = useState<Music | null>(null);
-  const [selectedMusic, setSelectedMusic] = useState<Music | null>(null);
+  const [selectedMusicState, setSelectedMusicState] = useState<{
+    music: Music;
+    initialTab?: "lyrics" | "chords";
+  } | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<{
     type: "success" | "error" | "info";
     text: string;
@@ -86,13 +89,13 @@ export function MusicView() {
   };
 
   const handleCreateOrUpdate = async (
-    data: CreateMusicInput
+    data: CreateMusicInput | Omit<UpdateMusicInput, "id">
   ): Promise<{ success: boolean; error?: string }> => {
     let res;
     if (editingMusic) {
-      res = await updateMusicAction(editingMusic.id, data);
+      res = await updateMusicAction(editingMusic.id, data as Omit<UpdateMusicInput, "id">);
     } else {
-      res = await createMusicAction(data);
+      res = await createMusicAction(data as CreateMusicInput);
     }
 
     if (res.success) {
@@ -106,8 +109,8 @@ export function MusicView() {
       startTransition(() => {
         void refreshMusics();
       });
-      if (selectedMusic && editingMusic && selectedMusic.id === editingMusic.id) {
-        setSelectedMusic(res.data);
+      if (selectedMusicState && editingMusic && selectedMusicState.music.id === editingMusic.id) {
+        setSelectedMusicState({ ...selectedMusicState, music: res.data });
       }
       return { success: true };
     } else {
@@ -128,8 +131,8 @@ export function MusicView() {
         next.delete(id);
         return next;
       });
-      if (selectedMusic?.id === id) {
-        setSelectedMusic(null);
+      if (selectedMusicState?.music.id === id) {
+        setSelectedMusicState(null);
       }
       startTransition(() => {
         void refreshMusics();
@@ -246,7 +249,7 @@ export function MusicView() {
           selectedIds={selectedIds}
           onToggleSelect={handleToggleSelect}
           onClearSelection={handleClearSelection}
-          onSelect={setSelectedMusic}
+          onSelect={(music, initialTab) => setSelectedMusicState({ music, initialTab })}
           onEdit={openEditModal}
           onDelete={handleDelete}
           onOpenCreate={openCreateModal}
@@ -266,12 +269,13 @@ export function MusicView() {
       />
 
       {/* Music Detail Modal */}
-      {selectedMusic && (
+      {selectedMusicState && (
         <MusicDetail
-          music={selectedMusic}
-          onClose={() => setSelectedMusic(null)}
+          music={selectedMusicState.music}
+          initialTab={selectedMusicState.initialTab}
+          onClose={() => setSelectedMusicState(null)}
           onEdit={(m) => {
-            setSelectedMusic(null);
+            setSelectedMusicState(null);
             openEditModal(m);
           }}
           onDelete={(id) => {
