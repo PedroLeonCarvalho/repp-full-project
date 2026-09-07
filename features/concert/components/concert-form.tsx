@@ -35,10 +35,15 @@ const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
 function formatDateForInput(date: Date | string | undefined): string {
   if (!date) {
     const today = new Date();
-    return today.toISOString().split("T")[0];
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   }
-  const d = typeof date === "string" ? new Date(date) : date;
-  return d.toISOString().split("T")[0];
+  if (typeof date === "string") {
+    return date.split("T")[0];
+  }
+  return date.toISOString().split("T")[0];
 }
 
 function ConcertFormModal({

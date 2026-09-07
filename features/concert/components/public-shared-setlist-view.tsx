@@ -6,6 +6,7 @@ import Link from "next/link";
 import type { PublicSharedConcert, PublicSharedSetlistItem } from "@/features/concert/types";
 import { LyricsViewer } from "@/features/concert/components/lyrics-viewer";
 import { ChordsViewer } from "@/features/music/components/chords-viewer";
+import { formatConcertDate } from "@/lib/date-utils";
 
 interface PublicSharedSetlistViewProps {
   concert: PublicSharedConcert;
@@ -78,16 +79,12 @@ export function PublicSharedSetlistView({
     }
   };
 
-  const formattedDate = new Date(concert.presentationDate).toLocaleDateString(
-    "pt-BR",
-    {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      timeZone: "UTC",
-    }
-  );
+  const formattedDate = formatConcertDate(concert.presentationDate, {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 
   const scheduleFormatted =
     concert.startTime || concert.finishTime

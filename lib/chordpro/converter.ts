@@ -24,7 +24,7 @@
  * Covers: C, Cm, C7, Cmaj7, C#m7, Gb/B, Dsus2, Dadd9, etc.
  */
 const CHORD_TOKEN_RE =
-  /^[A-G][b#]?(m(?:aj)?|min|dim|aug|sus|add)?[0-9]*(\/[A-G][b#]?)?$/;
+  /^[A-G][b#]?([°º]|m(?:aj|in)?|M(?:aj)?|dim|aug|sus[24]?|add)?[0-9]*(M|\+)?(\([b#]?[0-9]+\))*(\/[A-G][b#]?)?$/;
 
 function isChordToken(token: string): boolean {
   return CHORD_TOKEN_RE.test(token);

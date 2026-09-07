@@ -74,6 +74,10 @@ export function ProjectView() {
     const res = await listProjectsAction();
     if (res.success) {
       setProjects(res.data);
+      setExpandedIds((prev) => {
+        const allIds = new Set(res.data.map((p) => p.id));
+        return prev.size === 0 ? allIds : new Set([...prev, ...allIds]);
+      });
       await Promise.all(res.data.map((p) => loadConcertsForProject(p.id)));
     } else {
       setFeedbackMessage({ type: "error", text: res.error });
@@ -89,6 +93,7 @@ export function ProjectView() {
       if (!isCancelled) {
         if (res.success) {
           setProjects(res.data);
+          setExpandedIds(new Set(res.data.map((p) => p.id)));
           await Promise.all(res.data.map((p) => loadConcertsForProject(p.id)));
         } else {
           setFeedbackMessage({ type: "error", text: res.error });

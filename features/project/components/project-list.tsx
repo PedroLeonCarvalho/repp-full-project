@@ -3,15 +3,16 @@
 import { useMemo, useState } from "react";
 import type { ProjectWithMusics } from "../types";
 import type { ConcertWithSetlist } from "@/features/concert/types";
+import { formatConcertDate } from "@/lib/date-utils";
 
 function getConcertTimestamp(concert: {
   presentationDate: Date | string;
   startTime?: string | null;
 }): number {
   const dateObj = new Date(concert.presentationDate);
-  let year = dateObj.getFullYear();
-  let month = dateObj.getMonth();
-  let day = dateObj.getDate();
+  let year = dateObj.getUTCFullYear();
+  let month = dateObj.getUTCMonth();
+  let day = dateObj.getUTCDate();
 
   if (typeof concert.presentationDate === "string" && concert.presentationDate.includes("-")) {
     const datePart = concert.presentationDate.split("T")[0];
@@ -46,9 +47,9 @@ function isConcertPassed(
   nowTimestamp: number
 ): boolean {
   const dateObj = new Date(concert.presentationDate);
-  let year = dateObj.getFullYear();
-  let month = dateObj.getMonth();
-  let day = dateObj.getDate();
+  let year = dateObj.getUTCFullYear();
+  let month = dateObj.getUTCMonth();
+  let day = dateObj.getUTCDate();
 
   if (typeof concert.presentationDate === "string" && concert.presentationDate.includes("-")) {
     const datePart = concert.presentationDate.split("T")[0];
@@ -368,13 +369,7 @@ export function ProjectList({
                         .sort((a, b) => getConcertTimestamp(b) - getConcertTimestamp(a))
                         .map((concert) => {
                           const isPassed = isConcertPassed(concert, now);
-                          const dateStr = new Date(
-                            concert.presentationDate
-                          ).toLocaleDateString("pt-BR", {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
-                          });
+                          const dateStr = formatConcertDate(concert.presentationDate);
 
                           return (
                             <div

@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import type { SetlistItem } from "../types";
 import { LyricsViewer } from "./lyrics-viewer";
 import { ChordsViewer } from "@/features/music/components/chords-viewer";
+import type { Music } from "@/features/music/types";
+import { MusicForm } from "@/features/music/components/music-form";
+import { updateMusicAction } from "@/features/music/actions/music-actions";
 
 interface ConcertPresentationModeProps {
   setlist: SetlistItem[];
@@ -36,6 +39,7 @@ export function ConcertPresentationMode({
   const [viewMode, setViewMode] = useState<"lyrics" | "chords">(initialMode);
   const [chordsMode, setChordsMode] = useState<"render" | "raw">("render");
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [editingMusic, setEditingMusic] = useState<Music | null>(null);
   const [lyricsFontSize, setLyricsFontSize] = useState<LyricsFontSize>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("repp_lyrics_font_size");
@@ -68,8 +72,11 @@ export function ConcertPresentationMode({
     }
   };
 
+  const [musicOverrides, setMusicOverrides] = useState<Record<string, Music>>({});
+
   const currentItem = setlist[currentIndex];
-  const music = currentItem?.music;
+  const rawMusic = currentItem?.music;
+  const music = rawMusic ? musicOverrides[rawMusic.id] || rawMusic : null;
 
   // Request Fullscreen & Keep Screen Awake (WakeLock)
   useEffect(() => {
@@ -341,6 +348,15 @@ export function ConcertPresentationMode({
                   {keyDisplay}
                 </span>
               )}
+              <button
+                type="button"
+                onClick={() => setEditingMusic(music)}
+                className="rounded-lg bg-zinc-800/90 border border-zinc-700/80 px-2 py-0.5 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-700 transition-all cursor-pointer inline-flex items-center gap-1 shrink-0"
+                title="Editar dados da música (letra, cifra, tom, observação)"
+              >
+                <span>✏️</span>
+                <span className="hidden xs:inline">Editar Música</span>
+              </button>
             </div>
             <span className="text-[11px] sm:text-xs text-zinc-400 truncate block mt-0.5">
               {music.artist} • <span className="text-zinc-500">{concertTitle}</span>
@@ -417,6 +433,23 @@ export function ConcertPresentationMode({
         <span>CONCLUIR</span>
         <span>✓</span>
       </button>
+
+      {/* Edit Music Modal */}
+      <MusicForm
+        isOpen={Boolean(editingMusic)}
+        initialData={editingMusic}
+        onClose={() => setEditingMusic(null)}
+        onSubmit={async (data) => {
+          if (!editingMusic) return { success: false, error: "Música não encontrada." };
+          const res = await updateMusicAction(editingMusic.id, data);
+          if (res.success && res.data) {
+            const updated = res.data;
+            setMusicOverrides((prev) => ({ ...prev, [updated.id]: updated }));
+            setEditingMusic(null);
+          }
+          return res;
+        }}
+      />
     </div>
   );
 }

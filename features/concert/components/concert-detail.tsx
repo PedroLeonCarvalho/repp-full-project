@@ -14,6 +14,10 @@ import { ConcertPresentationMode } from "./concert-presentation-mode";
 import { ConcertMusiciansSection } from "@/features/musician/components/concert-musicians-section";
 import { ContractModal } from "@/features/contract/components/contract-modal";
 import { ShareSetlistModal } from "./share-setlist-modal";
+import { formatConcertDate } from "@/lib/date-utils";
+import type { Music } from "@/features/music/types";
+import { MusicForm } from "@/features/music/components/music-form";
+import { updateMusicAction } from "@/features/music/actions/music-actions";
 
 interface ConcertDetailProps {
   concertId: string;
@@ -36,6 +40,7 @@ export function ConcertDetail({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [editingMusic, setEditingMusic] = useState<Music | null>(null);
   const [presentationState, setPresentationState] = useState<{
     index: number;
     mode: "lyrics" | "chords";
@@ -180,14 +185,7 @@ export function ConcertDetail({
 
   const existingMusicIds = new Set(concert.setlist.map((s) => s.musicId));
 
-  const formattedDate = new Date(concert.presentationDate).toLocaleDateString(
-    "pt-BR",
-    {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    }
-  );  return (
+  const formattedDate = formatConcertDate(concert.presentationDate);  return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="relative w-full max-w-3xl rounded-3xl bg-zinc-900 border border-zinc-800 text-zinc-100 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden my-auto">
         {/* Unified scroll container: Header info + Setlist + Musicians + Footer scroll together */}
@@ -470,6 +468,17 @@ export function ConcertDetail({
                         <span>Cifra</span>
                       </button>
 
+                      {/* Edit music button */}
+                      <button
+                        type="button"
+                        onClick={() => setEditingMusic(music)}
+                        className="rounded-lg bg-zinc-800 px-2.5 py-1.5 text-[11px] font-medium text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700 transition-colors cursor-pointer flex items-center gap-1"
+                        title="Editar dados da música (letra, cifra, tom, observação)"
+                      >
+                        <span>✏️</span>
+                        <span>Editar</span>
+                      </button>
+
                       {/* Remove button */}
                       <button
                         type="button"
@@ -553,6 +562,22 @@ export function ConcertDetail({
           }}
         />
       )}
+
+      {/* Edit Music Modal */}
+      <MusicForm
+        isOpen={Boolean(editingMusic)}
+        initialData={editingMusic}
+        onClose={() => setEditingMusic(null)}
+        onSubmit={async (data) => {
+          if (!editingMusic) return { success: false, error: "Música não encontrada." };
+          const res = await updateMusicAction(editingMusic.id, data);
+          if (res.success) {
+            setEditingMusic(null);
+            void refreshConcert();
+          }
+          return res;
+        }}
+      />
     </div>
   );
 }

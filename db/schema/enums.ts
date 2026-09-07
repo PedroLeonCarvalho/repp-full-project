@@ -57,6 +57,9 @@ export const MUSIC_GENRES = [
   "AXE",
   "SERTANEJO",
   "FORRO",
+  "GOSPEL",
+  "FUNK",
+  "RAP",
   "OTHER",
 ] as const;
 

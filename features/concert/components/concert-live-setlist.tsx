@@ -9,6 +9,9 @@ import {
 } from "../actions/concert-actions";
 import { AddToSetlistModal } from "./add-to-setlist-modal";
 import { ConcertPresentationMode } from "./concert-presentation-mode";
+import type { Music } from "@/features/music/types";
+import { MusicForm } from "@/features/music/components/music-form";
+import { updateMusicAction } from "@/features/music/actions/music-actions";
 
 interface ConcertLiveSetlistProps {
   concertId: string;
@@ -32,6 +35,7 @@ export function ConcertLiveSetlist({
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [completedItemIds, setCompletedItemIds] = useState<Set<string>>(new Set());
+  const [editingMusic, setEditingMusic] = useState<Music | null>(null);
 
   const toggleCompleteItem = (itemId: string) => {
     setCompletedItemIds((prev) => {
@@ -659,6 +663,17 @@ export function ConcertLiveSetlist({
                         Sem cifra
                       </span>
                     )}
+
+                    {/* Dedicated "Editar" Button */}
+                    <button
+                      type="button"
+                      onClick={() => setEditingMusic(music)}
+                      className="rounded-lg bg-zinc-800/80 border border-zinc-700/60 px-2 py-1 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-700 transition-all active:scale-95 cursor-pointer shrink-0 flex items-center gap-1"
+                      title="Editar dados da música (letra, cifra, tom, observação)"
+                    >
+                      <span>✏️</span>
+                      <span className="hidden xs:inline">Editar</span>
+                    </button>
                   </div>
                 </div>
               );
@@ -684,6 +699,25 @@ export function ConcertLiveSetlist({
         initialSearch={searchTerm}
         onClose={() => setIsAddModalOpen(false)}
         onAdd={handleAddMusics}
+      />
+
+      {/* Edit Music Modal */}
+      <MusicForm
+        isOpen={Boolean(editingMusic)}
+        initialData={editingMusic}
+        onClose={() => setEditingMusic(null)}
+        onSubmit={async (data) => {
+          if (!editingMusic) return { success: false, error: "Música não encontrada." };
+          const res = await updateMusicAction(editingMusic.id, data);
+          if (res.success) {
+            setEditingMusic(null);
+            const updatedRes = await getConcertByIdAction(concertId);
+            if (updatedRes.success && updatedRes.data) {
+              setConcert(updatedRes.data);
+            }
+          }
+          return res;
+        }}
       />
     </div>
   );

@@ -21,6 +21,9 @@ const GENRE_LABELS: Record<MusicGenre, string> = {
   AXE: "Axé",
   SERTANEJO: "Sertanejo",
   FORRO: "Forró",
+  GOSPEL: "Gospel/Religioso",
+  FUNK: "Funk",
+  RAP: "RAP",
   OTHER: "Outro",
 };
 

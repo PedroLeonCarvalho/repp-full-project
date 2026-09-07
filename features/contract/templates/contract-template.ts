@@ -1,5 +1,6 @@
 import type { Concert } from "@/features/concert/types";
 import type { Contractor } from "@/features/contractor/types";
+import { formatConcertDate } from "@/lib/date-utils";
 
 export interface ContractArtistData {
   fullName: string;
@@ -34,14 +35,7 @@ export function generateStandardContractText(data: ContractTemplateData): string
     additionalClauses,
   } = data;
 
-  const formattedDate = new Date(concert.presentationDate).toLocaleDateString(
-    "pt-BR",
-    {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    }
-  );
+  const formattedDate = formatConcertDate(concert.presentationDate);
 
   const artistName = artist.fullName;
   const stageName = artist.stageName || artist.fullName;
