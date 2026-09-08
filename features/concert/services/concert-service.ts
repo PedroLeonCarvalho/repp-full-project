@@ -320,7 +320,7 @@ export async function getConcertById(
       chords: r.cm.chords ?? r.mc.chords,
       originalKey: r.cm.originalKey,
       preferredKey: r.cm.preferredKey,
-      skillLevel: r.cm.skillLevel,
+      studying: r.cm.studying,
       genre: r.cm.genre,
       genres: (r.cm.genres as MusicGenre[]) ?? (r.cm.genre ? [r.cm.genre as MusicGenre] : null),
       note: r.cm.note,
@@ -399,6 +399,33 @@ export async function listConcertsByProject(
   return allConcerts.map(({ concert, contractorName, setlistCount }) => ({
     ...mapConcert(concert),
     projectName: project.name,
+    contractorName,
+    setlist: [],
+    setlistCount,
+  }));
+}
+
+export async function listAllConcerts(
+  customerId: string
+): Promise<ConcertWithSetlist[]> {
+  const allConcerts = await db
+    .select({
+      concert: concerts,
+      projectName: projects.name,
+      contractorName: contractors.contactPersonName,
+      setlistCount: sql<number>`count(${setlistItems.id})::int`,
+    })
+    .from(concerts)
+    .innerJoin(projects, eq(projects.id, concerts.projectId))
+    .leftJoin(contractors, eq(contractors.id, concerts.contractorId))
+    .leftJoin(setlistItems, eq(setlistItems.concertId, concerts.id))
+    .where(eq(concerts.customerId, customerId))
+    .groupBy(concerts.id, projects.name, contractors.contactPersonName)
+    .orderBy(desc(concerts.presentationDate), desc(concerts.startTime));
+
+  return allConcerts.map(({ concert, projectName, contractorName, setlistCount }) => ({
+    ...mapConcert(concert),
+    projectName,
     contractorName,
     setlist: [],
     setlistCount,
@@ -737,6 +764,7 @@ export async function getSharedConcertByToken(
       lyrics: item.cm.lyrics ?? item.mc.lyrics,
       chords: item.cm.chords ?? item.mc.chords,
       spotifyLink: item.cm.spotifyLink,
+      studying: item.cm.studying,
     },
   }));
 

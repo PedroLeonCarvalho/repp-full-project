@@ -29,7 +29,7 @@ export interface Music {
   chords: string | null;    // COALESCE(customer override, catalog value)
   originalKey: MusicalKey | null;
   preferredKey: MusicalKey | null;
-  skillLevel: boolean;
+  studying: boolean;
   genre: MusicGenre | null;
   genres?: MusicGenre[] | null;
   note: string | null;
@@ -47,7 +47,7 @@ export interface CreateMusicInput {
   chords?: string | null;
   originalKey?: MusicalKey | null;
   preferredKey?: MusicalKey | null;
-  skillLevel?: boolean;
+  studying?: boolean;
   genre?: MusicGenre | null;
   genres?: MusicGenre[] | null;
   note?: string | null;
@@ -62,7 +62,7 @@ export interface UpdateMusicInput {
   chords?: string | null;
   originalKey?: MusicalKey | null;
   preferredKey?: MusicalKey | null;
-  skillLevel?: boolean;
+  studying?: boolean;
   genre?: MusicGenre | null;
   genres?: MusicGenre[] | null;
   note?: string | null;
@@ -76,7 +76,7 @@ export interface MusicFilter {
   genres?: MusicGenre[];
   originalKey?: MusicalKey;
   preferredKey?: MusicalKey;
-  skillLevel?: boolean;
+  studying?: boolean;
   artist?: string;
 }
 

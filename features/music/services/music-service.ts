@@ -50,7 +50,7 @@ function mergeRow(row: {
     chords: row.cm.chords ?? row.mc.chords,
     originalKey: row.cm.originalKey,
     preferredKey: row.cm.preferredKey,
-    skillLevel: row.cm.skillLevel,
+    studying: row.cm.studying,
     genre: row.cm.genre ?? (genresList[0] || null),
     genres: genresList,
     note: row.cm.note,
@@ -113,7 +113,7 @@ export async function createMusic(
       chords: validated.chords || null,
       originalKey: validated.originalKey || null,
       preferredKey: validated.preferredKey || null,
-      skillLevel: validated.skillLevel ?? true,
+      studying: validated.studying ?? false,
       genre: primaryGenre,
       genres: genresToSave.length > 0 ? genresToSave : null,
       note: validated.note || null,
@@ -168,7 +168,7 @@ export async function updateMusic(
       ...(validated.chords !== undefined ? { chords: validated.chords } : {}),
       ...(validated.originalKey !== undefined ? { originalKey: validated.originalKey } : {}),
       ...(validated.preferredKey !== undefined ? { preferredKey: validated.preferredKey } : {}),
-      ...(validated.skillLevel !== undefined ? { skillLevel: validated.skillLevel } : {}),
+      ...(validated.studying !== undefined ? { studying: validated.studying } : {}),
       ...genresUpdate,
       ...(validated.note !== undefined ? { note: validated.note } : {}),
       ...(validated.spotifyLink !== undefined ? { spotifyLink: validated.spotifyLink } : {}),
@@ -263,8 +263,8 @@ export async function listMusics(
     conditions.push(eq(customerMusics.preferredKey, filters.preferredKey));
   }
 
-  if (filters?.skillLevel !== undefined) {
-    conditions.push(eq(customerMusics.skillLevel, filters.skillLevel));
+  if (filters?.studying !== undefined) {
+    conditions.push(eq(customerMusics.studying, filters.studying));
   }
 
   if (filters?.artist && filters.artist.trim().length > 0) {

@@ -437,7 +437,7 @@ export function ProjectList({
                                 title="Iniciar apresentação ao vivo com setlist e letras"
                               >
                                 <span>▶</span>
-                                <span>Iniciar show</span>
+                                <span>Tela de Palco</span>
                               </button>
 
                               {onShareConcert && (

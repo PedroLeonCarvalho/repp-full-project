@@ -186,16 +186,16 @@ export function MusicList({
                       </span>
                     )}
 
-                    {/* Mastery Status Bullet */}
-                    {music.skillLevel ? (
-                      <span
-                        title="Música dominada"
-                        className="inline-block h-2 w-2 rounded-full bg-emerald-500 shrink-0"
-                      />
-                    ) : (
+                    {/* Study Status Bullet: Yellow for true (in study), Green for false (ready) */}
+                    {music.studying ? (
                       <span
                         title="Música em estudo"
                         className="inline-block h-2 w-2 rounded-full bg-amber-500 shrink-0"
+                      />
+                    ) : (
+                      <span
+                        title="Música pronta no repertório"
+                        className="inline-block h-2 w-2 rounded-full bg-emerald-500 shrink-0"
                       />
                     )}
                   </div>

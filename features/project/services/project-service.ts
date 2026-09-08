@@ -329,7 +329,7 @@ export async function listProjectMusics(
     chords: r.cm.chords ?? r.mc.chords,
     originalKey: r.cm.originalKey,
     preferredKey: r.cm.preferredKey,
-    skillLevel: r.cm.skillLevel,
+    studying: r.cm.studying,
     genre: r.cm.genre,
     genres: (r.cm.genres as MusicGenre[]) ?? (r.cm.genre ? [r.cm.genre as MusicGenre] : null),
     note: r.cm.note,

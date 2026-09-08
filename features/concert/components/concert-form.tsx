@@ -14,11 +14,12 @@ import {
   listConcertMusiciansAction,
 } from "@/features/musician/actions/musician-actions";
 import { ContractorForm } from "@/features/contractor/components/contractor-form";
-
+import { listProjectsAction } from "@/features/project/actions/project-actions";
+import type { ProjectWithMusics } from "@/features/project/types";
 
 interface ConcertFormProps {
   isOpen: boolean;
-  projectId: string;
+  projectId?: string;
   projectName?: string;
   initialData: Concert | null;
   onClose: () => void;
@@ -47,18 +48,22 @@ function formatDateForInput(date: Date | string | undefined): string {
 }
 
 function ConcertFormModal({
-  projectId,
+  projectId = "",
   projectName,
   initialData,
   onClose,
   onSubmit,
 }: {
-  projectId: string;
+  projectId?: string;
   projectName?: string;
   initialData: Concert | null;
   onClose: () => void;
   onSubmit: (data: CreateConcertInput) => Promise<{ success: boolean; error?: string }>;
 }) {
+  const [selectedProjectId, setSelectedProjectId] = useState(
+    projectId || initialData?.projectId || ""
+  );
+  const [userProjects, setUserProjects] = useState<ProjectWithMusics[]>([]);
   const [title, setTitle] = useState(initialData?.title ?? "");
   const [contractorId, setContractorId] = useState(initialData?.contractorId ?? "");
   const [contractors, setContractors] = useState<Contractor[]>([]);
@@ -100,13 +105,14 @@ function ConcertFormModal({
     let isCancelled = false;
 
     async function loadData() {
-      const [contractorsRes, musiciansRes, concertMusiciansRes] =
+      const [contractorsRes, musiciansRes, concertMusiciansRes, projectsRes] =
         await Promise.all([
           listContractorsAction(),
           listMusiciansAction(),
           initialData
             ? listConcertMusiciansAction(initialData.id)
             : Promise.resolve(null),
+          listProjectsAction(),
         ]);
 
       if (!isCancelled) {
@@ -128,6 +134,12 @@ function ConcertFormModal({
             }))
           );
         }
+        if (projectsRes.success && projectsRes.data) {
+          setUserProjects(projectsRes.data);
+          if (!selectedProjectId && projectsRes.data.length > 0) {
+            setSelectedProjectId(projectsRes.data[0].id);
+          }
+        }
       }
     }
 
@@ -136,7 +148,7 @@ function ConcertFormModal({
     return () => {
       isCancelled = true;
     };
-  }, [initialData]);
+  }, [initialData, selectedProjectId]);
 
   const handleAddMusician = () => {
     if (!currentMusicianId) return;
@@ -278,6 +290,25 @@ function ConcertFormModal({
         )}
 
         <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-4">
+          {(!projectId || userProjects.length > 1) && (
+            <div>
+              <label className="block text-xs font-medium text-zinc-300 mb-1.5">
+                Projeto / Banda <span className="text-emerald-400">*</span>
+              </label>
+              <select
+                value={selectedProjectId}
+                onChange={(e) => setSelectedProjectId(e.target.value)}
+                className="w-full rounded-xl bg-zinc-800/80 px-3.5 py-2.5 text-sm text-zinc-100 border border-zinc-700/60 focus:border-emerald-500 focus:outline-none transition-all"
+              >
+                {userProjects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Contractor Select (1st field to be filled) with "+ Novo" button */}
           <div>
             <label className="block text-xs font-medium text-zinc-300 mb-1.5">

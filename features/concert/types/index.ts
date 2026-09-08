@@ -46,6 +46,7 @@ export interface PublicSharedMusic {
   lyrics: string | null;
   chords: string | null;
   spotifyLink: string | null;
+  studying?: boolean;
 }
 
 export interface PublicSharedSetlistItem {

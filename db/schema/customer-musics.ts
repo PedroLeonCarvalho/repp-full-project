@@ -19,7 +19,7 @@ export const customerMusics = pgTable(
     // Personal performance settings
     originalKey: musicalKeyEnum("original_key"),
     preferredKey: musicalKeyEnum("preferred_key"),
-    skillLevel: boolean("skill_level").notNull().default(true),
+    studying: boolean("studying").notNull().default(false),
     genre: musicGenreEnum("genre"),
     genres: text("genres").array(),
     note: text("note"),

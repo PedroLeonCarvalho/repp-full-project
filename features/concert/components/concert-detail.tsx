@@ -337,7 +337,7 @@ export function ConcertDetail({
                   }}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-1.5 text-xs font-bold text-zinc-950 hover:bg-emerald-400 transition-all shadow-md shadow-emerald-500/10 active:scale-95 cursor-pointer"
                 >
-                  <span>▶ Iniciar show</span>
+                  <span>▶ Tela de Palco</span>
                 </button>
               )}
             </div>
@@ -402,6 +402,18 @@ export function ConcertDetail({
                           <span className="font-semibold text-xs sm:text-sm text-zinc-100 truncate">
                             {music.title}
                           </span>
+                          {/* Study Status Bullet */}
+                          {music.studying ? (
+                            <span
+                              title="Música em estudo"
+                              className="inline-block h-2 w-2 rounded-full bg-amber-500 shrink-0"
+                            />
+                          ) : (
+                            <span
+                              title="Música pronta no repertório"
+                              className="inline-block h-2 w-2 rounded-full bg-emerald-500 shrink-0"
+                            />
+                          )}
                           {keyDisplay && (
                             <span className="rounded bg-emerald-950/80 border border-emerald-800/80 px-1.5 py-0.5 text-[10px] font-mono font-bold text-emerald-400 shrink-0">
                               {keyDisplay}

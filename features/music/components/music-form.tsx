@@ -71,8 +71,8 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
   const [preferredKey, setPreferredKey] = useState<MusicalKey | "">(
     initialData?.preferredKey || ""
   );
-  const [skillLevel, setSkillLevel] = useState<boolean>(
-    initialData?.skillLevel ?? true
+  const [studying, setStudying] = useState<boolean>(
+    initialData?.studying ?? false
   );
   const initialGenres: MusicGenre[] =
     initialData?.genres && initialData.genres.length > 0
@@ -391,7 +391,7 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
           chords: chords.trim() || null,
           originalKey: originalKey ? (originalKey as MusicalKey) : null,
           preferredKey: preferredKey ? (preferredKey as MusicalKey) : null,
-          skillLevel,
+          studying,
           genres: genres.length > 0 ? genres : null,
           genre: genres.length > 0 ? genres[0] : null,
           note: note.trim() || null,
@@ -408,7 +408,7 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
           chords: chords.trim() || null,
           originalKey: originalKey ? (originalKey as MusicalKey) : null,
           preferredKey: preferredKey ? (preferredKey as MusicalKey) : null,
-          skillLevel,
+          studying,
           genres: genres.length > 0 ? genres : null,
           genre: genres.length > 0 ? genres[0] : null,
           note: note.trim() || null,
@@ -795,20 +795,21 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
             </div>
           </div>
 
-          {/* ─── Skill Level ─── */}
+          {/* ─── Status de Estudo ─── */}
           <div className="flex items-center gap-3 rounded-xl bg-zinc-800/40 p-3 border border-zinc-700/40">
             <input
               type="checkbox"
-              id="skillLevelCheckbox"
-              checked={skillLevel}
-              onChange={(e) => setSkillLevel(e.target.checked)}
-              className="h-4 w-4 rounded accent-emerald-500 border-zinc-600 bg-zinc-700 text-emerald-500 focus:ring-emerald-500/20"
+              id="studyingCheckbox"
+              checked={studying}
+              onChange={(e) => setStudying(e.target.checked)}
+              className="h-4 w-4 rounded accent-amber-500 border-zinc-600 bg-zinc-700 text-amber-500 focus:ring-amber-500/20"
             />
             <label
-              htmlFor="skillLevelCheckbox"
-              className="text-xs font-medium text-zinc-200 cursor-pointer select-none"
+              htmlFor="studyingCheckbox"
+              className="text-xs font-medium text-zinc-200 cursor-pointer select-none flex items-center gap-1.5"
             >
-              Música dominada no repertório (pronta para apresentações)
+              <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
+              Música ainda em estudo
             </label>
           </div>
 

@@ -12,6 +12,10 @@ import { MusicFilters } from "./music-filters";
 import { MusicList } from "./music-list";
 import { MusicForm } from "./music-form";
 import { MusicDetail } from "./music-detail";
+import { SelectConcertModal } from "@/features/concert/components/select-concert-modal";
+import { ConcertForm } from "@/features/concert/components/concert-form";
+import { createConcertAction, addMusicsToSetlistAction } from "@/features/concert/actions/concert-actions";
+import type { CreateConcertInput } from "@/features/concert/types";
 
 export function MusicView() {
   const [musics, setMusics] = useState<Music[]>([]);
@@ -76,16 +80,43 @@ export function MusicView() {
     });
   };
 
+  const [addingToConcertMusicIds, setAddingToConcertMusicIds] = useState<string[] | null>(null);
+  const [isCreateConcertOpen, setIsCreateConcertOpen] = useState(false);
+  const [pendingAddMusicIds, setPendingAddMusicIds] = useState<string[]>([]);
+
   const handleClearSelection = () => {
     setSelectedIds(new Set());
   };
 
   const handleAddToConcert = (ids: string[]) => {
-    setFeedbackMessage({
-      type: "info",
-      text: `${ids.length} música(s) selecionada(s). A vinculação a apresentações estará disponível na tela de Apresentações/Concerts.`,
-    });
-    setTimeout(() => setFeedbackMessage(null), 4500);
+    setAddingToConcertMusicIds(ids);
+  };
+
+  const handleCreateConcertSubmit = async (
+    data: CreateConcertInput
+  ): Promise<{ success: boolean; error?: string }> => {
+    const res = await createConcertAction(data);
+    if (res.success && res.data) {
+      const concert = res.data;
+      if (pendingAddMusicIds.length > 0) {
+        await addMusicsToSetlistAction(concert.id, pendingAddMusicIds);
+        setFeedbackMessage({
+          type: "success",
+          text: `Apresentação "${concert.title}" criada e ${pendingAddMusicIds.length} música(s) adicionada(s) ao setlist!`,
+        });
+        setSelectedIds(new Set());
+        setPendingAddMusicIds([]);
+      } else {
+        setFeedbackMessage({
+          type: "success",
+          text: `Apresentação "${concert.title}" criada com sucesso!`,
+        });
+      }
+      setTimeout(() => setFeedbackMessage(null), 4000);
+      setIsCreateConcertOpen(false);
+      return { success: true };
+    }
+    return { success: false, error: res.success ? undefined : res.error };
   };
 
   const handleCreateOrUpdate = async (
@@ -281,6 +312,46 @@ export function MusicView() {
           onDelete={(id) => {
             handleDelete(id);
           }}
+        />
+      )}
+
+      {/* Select Concert Modal */}
+      {addingToConcertMusicIds && (
+        <SelectConcertModal
+          isOpen={Boolean(addingToConcertMusicIds)}
+          musicIds={addingToConcertMusicIds}
+          musicTitlesPreview={
+            addingToConcertMusicIds.length === 1
+              ? musics.find((m) => m.id === addingToConcertMusicIds[0])?.title
+              : undefined
+          }
+          onClose={() => setAddingToConcertMusicIds(null)}
+          onOpenCreateConcert={() => {
+            setPendingAddMusicIds(addingToConcertMusicIds);
+            setAddingToConcertMusicIds(null);
+            setIsCreateConcertOpen(true);
+          }}
+          onSuccess={(concertTitle, addedCount) => {
+            setSelectedIds(new Set());
+            setFeedbackMessage({
+              type: "success",
+              text: `${addedCount} música(s) adicionada(s) à apresentação "${concertTitle}" com sucesso!`,
+            });
+            setTimeout(() => setFeedbackMessage(null), 4500);
+          }}
+        />
+      )}
+
+      {/* Create Concert Form Modal */}
+      {isCreateConcertOpen && (
+        <ConcertForm
+          isOpen={isCreateConcertOpen}
+          initialData={null}
+          onClose={() => {
+            setIsCreateConcertOpen(false);
+            setPendingAddMusicIds([]);
+          }}
+          onSubmit={handleCreateConcertSubmit}
         />
       )}
     </div>

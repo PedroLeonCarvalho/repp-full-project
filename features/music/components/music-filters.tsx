@@ -37,7 +37,7 @@ export function MusicFilters({
       filters.genre ||
       filters.preferredKey ||
       filters.originalKey ||
-      filters.skillLevel !== undefined
+      filters.studying !== undefined
   );
 
   return (
@@ -151,12 +151,12 @@ export function MusicFilters({
           ))}
         </select>
 
-        {/* Skill Level Filter */}
+        {/* Study Status Filter */}
         <select
           value={
-            filters.skillLevel === undefined
+            filters.studying === undefined
               ? ""
-              : filters.skillLevel
+              : filters.studying
               ? "true"
               : "false"
           }
@@ -164,15 +164,15 @@ export function MusicFilters({
             const val = e.target.value;
             onChange({
               ...filters,
-              skillLevel:
+              studying:
                 val === "" ? undefined : val === "true" ? true : false,
             });
           }}
           className="w-full rounded-xl bg-zinc-800/80 px-3 py-2 text-xs sm:text-sm text-zinc-200 border border-zinc-700/60 focus:border-emerald-500 focus:outline-none"
         >
           <option value="">Todo o repertório</option>
-          <option value="true">✓ Dominadas</option>
-          <option value="false">⏳ Em estudo</option>
+          <option value="false">🟢 No repertório (Prontas)</option>
+          <option value="true">🟡 Em estudo</option>
         </select>
       </div>
 

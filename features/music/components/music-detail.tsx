@@ -144,12 +144,12 @@ export function MusicDetail({
             ) : null}
             <span
               className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium ${
-                music.skillLevel
-                  ? "bg-emerald-950/60 border border-emerald-800 text-emerald-300"
-                  : "bg-amber-950/60 border border-amber-800 text-amber-300"
+                music.studying
+                  ? "bg-amber-950/60 border border-amber-800 text-amber-300"
+                  : "bg-emerald-950/60 border border-emerald-800 text-emerald-300"
               }`}
             >
-              {music.skillLevel ? "✓ Dominada" : "⏳ Em estudo"}
+              {music.studying ? "⏳ Em estudo" : "✓ No repertório"}
             </span>
 
             {music.sheetMusicFile && (

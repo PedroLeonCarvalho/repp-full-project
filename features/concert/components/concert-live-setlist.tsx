@@ -608,6 +608,19 @@ export function ConcertLiveSetlist({
                     >
                       {music.title}
                     </span>
+
+                    {/* Study Status Bullet */}
+                    {music.studying ? (
+                      <span
+                        title="Música em estudo"
+                        className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500 shrink-0"
+                      />
+                    ) : (
+                      <span
+                        title="Música pronta no repertório"
+                        className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500 shrink-0"
+                      />
+                    )}
                   </div>
 
                   {/* Right: Tune (Tom), Notes & Dedicated "Letra" and "Cifra" Buttons */}

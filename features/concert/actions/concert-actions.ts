@@ -12,6 +12,7 @@ import {
   getConcertById,
   getSharedConcertByToken,
   listConcertsByProject,
+  listAllConcerts,
   removeSetlistItem,
   reorderSetlist,
   updateConcert,
@@ -108,6 +109,21 @@ export async function listConcertsByProjectAction(
   try {
     const customerId = await requireAuthCustomerId();
     const items = await listConcertsByProject(projectId, customerId);
+    return { success: true, data: items };
+  } catch (err) {
+    if (err instanceof Error) {
+      return { success: false, error: err.message };
+    }
+    return { success: false, error: "Erro inesperado ao listar apresentações." };
+  }
+}
+
+export async function listAllConcertsAction(): Promise<
+  ActionResult<ConcertWithSetlist[]>
+> {
+  try {
+    const customerId = await requireAuthCustomerId();
+    const items = await listAllConcerts(customerId);
     return { success: true, data: items };
   } catch (err) {
     if (err instanceof Error) {

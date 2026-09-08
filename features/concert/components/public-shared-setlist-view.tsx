@@ -452,6 +452,18 @@ export function PublicSharedSetlistView({
                           <span className="text-sm sm:text-base font-bold text-zinc-100 group-hover:text-emerald-300 transition-colors truncate">
                             {item.music.title}
                           </span>
+                          {/* Study Status Bullet */}
+                          {item.music.studying ? (
+                            <span
+                              title="Música em estudo"
+                              className="inline-block h-2 w-2 rounded-full bg-amber-500 shrink-0"
+                            />
+                          ) : (
+                            <span
+                              title="Música pronta no repertório"
+                              className="inline-block h-2 w-2 rounded-full bg-emerald-500 shrink-0"
+                            />
+                          )}
                           {key && (
                             <span className="rounded-md bg-emerald-950/80 border border-emerald-500/40 px-2 py-0.5 font-mono font-bold text-xs text-emerald-400 shrink-0">
                               {key}
