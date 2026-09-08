@@ -215,13 +215,15 @@ export function PublicSharedSetlistView({
             </div>
           </div>
 
-          {/* Item Note Banner */}
-          {currentItem?.note && (
+          {/* Item Note / Music Observation Banner */}
+          {(currentItem?.note || currentMusic.note) && (
             <div className="mb-4 rounded-xl bg-amber-950/40 border border-amber-800/80 p-2.5 sm:p-3 text-xs sm:text-sm text-amber-200 shadow-sm">
               <span className="font-extrabold uppercase tracking-wider text-[10px] sm:text-xs block mb-0.5 text-amber-400">
                 💬 Observação:
               </span>
-              {currentItem.note}
+              {currentItem?.note && currentMusic.note
+                ? `${currentItem.note} (${currentMusic.note})`
+                : currentItem?.note || currentMusic.note}
             </div>
           )}
 
@@ -473,9 +475,12 @@ export function PublicSharedSetlistView({
                         <span className="text-xs text-zinc-400 block truncate">
                           {item.music.artist}
                         </span>
-                        {item.note && (
-                          <span className="text-[11px] text-amber-400/90 block mt-0.5 truncate">
-                            💬 {item.note}
+                        {(item.note || item.music.note) && (
+                          <span
+                            className="text-[11px] text-amber-400/90 block mt-0.5 truncate"
+                            title={item.note && item.music.note ? `${item.note} (${item.music.note})` : item.note || item.music.note || undefined}
+                          >
+                            💬 {item.note && item.music.note ? `${item.note} (${item.music.note})` : item.note || item.music.note}
                           </span>
                         )}
                       </div>

@@ -765,6 +765,7 @@ export async function getSharedConcertByToken(
       chords: item.cm.chords ?? item.mc.chords,
       spotifyLink: item.cm.spotifyLink,
       studying: item.cm.studying,
+      note: item.cm.note,
     },
   }));
 

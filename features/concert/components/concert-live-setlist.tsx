@@ -528,7 +528,7 @@ export function ConcertLiveSetlist({
               const displayIndex = originalIndex !== -1 ? originalIndex : index;
               const isCompleted = completedItemIds.has(item.id);
               const keyDisplay = music.preferredKey || music.originalKey;
-              const noteText = music.note || item.note;
+              const noteText = item.note && music.note ? `${item.note} (${music.note})` : item.note || music.note;
               const hasLyrics = Boolean(music.lyrics && music.lyrics.trim());
               const hasChords = Boolean(music.chords && music.chords.trim());
               const isDragging = draggedIndex === displayIndex;
@@ -630,7 +630,7 @@ export function ConcertLiveSetlist({
                     {/* Note / Observação badge (if present) */}
                     {noteText && (
                       <span
-                        className="rounded-md bg-amber-950/40 border border-amber-800/60 px-1.5 py-0.5 text-[11px] text-amber-300 truncate max-w-[90px] sm:max-w-[150px] hidden xs:inline"
+                        className="rounded-md bg-amber-950/40 border border-amber-800/60 px-1.5 py-0.5 text-[11px] text-amber-300 truncate max-w-[120px] sm:max-w-[200px]"
                         title={noteText}
                       >
                         💬 {noteText}

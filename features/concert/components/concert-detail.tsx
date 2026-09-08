@@ -337,7 +337,7 @@ export function ConcertDetail({
                   }}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-1.5 text-xs font-bold text-zinc-950 hover:bg-emerald-400 transition-all shadow-md shadow-emerald-500/10 active:scale-95 cursor-pointer"
                 >
-                  <span>▶ Tela de Palco</span>
+                  <span>▶ Modo Palco</span>
                 </button>
               )}
             </div>
