@@ -444,196 +444,126 @@ export function ConcertDetail({
                       </div>
                     </div>
 
-                    {/* Actions per track */}
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {/* Desktop Actions (visible on sm and up) */}
-                      <div className="hidden sm:flex items-center gap-1.5">
-                        {/* Reorder Buttons (alternative to drag) */}
-                        <div className="flex items-center bg-zinc-800/80 rounded-lg p-0.5 border border-zinc-700/60">
-                          <button
-                            type="button"
-                            disabled={index === 0}
-                            onClick={() => handleMove(index, "up")}
-                            className="px-1.5 py-1 text-xs text-zinc-400 hover:text-zinc-100 disabled:opacity-20 transition-colors cursor-pointer"
-                            title="Subir posição"
-                          >
-                            ▲
-                          </button>
-                          <button
-                            type="button"
-                            disabled={index === concert.setlist.length - 1}
-                            onClick={() => handleMove(index, "down")}
-                            className="px-1.5 py-1 text-xs text-zinc-400 hover:text-zinc-100 disabled:opacity-20 transition-colors cursor-pointer"
-                            title="Descer posição"
-                          >
-                            ▼
-                          </button>
-                        </div>
+                    {/* Actions per track: 3-Dots Action Menu (Universal for mobile and desktop) */}
+                    <div className="relative shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveMenuId(activeMenuId === item.id ? null : item.id);
+                        }}
+                        className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-800/90 text-zinc-300 hover:text-white hover:bg-zinc-700 active:scale-95 transition-all cursor-pointer border border-zinc-700/60 shadow-sm"
+                        title="Opções da música"
+                        aria-label={`Opções de ${music.title}`}
+                      >
+                        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                          <circle cx="12" cy="5" r="2" />
+                          <circle cx="12" cy="12" r="2" />
+                          <circle cx="12" cy="19" r="2" />
+                        </svg>
+                      </button>
 
-                        {/* View lyrics button */}
-                        <button
-                          type="button"
-                          onClick={() => setPresentationState({ index, mode: "lyrics" })}
-                          className="rounded-lg bg-zinc-800 px-2.5 py-1.5 text-[11px] font-medium text-emerald-400 hover:bg-zinc-700 transition-colors cursor-pointer"
-                          title="Ver letra"
-                        >
-                          Letra
-                        </button>
-
-                        {/* View chords button */}
-                        <button
-                          type="button"
-                          onClick={() => setPresentationState({ index, mode: "chords" })}
-                          className="rounded-lg bg-zinc-800 px-2.5 py-1.5 text-[11px] font-medium text-amber-400 hover:bg-zinc-700 transition-colors cursor-pointer flex items-center gap-1"
-                          title="Ver cifra"
-                        >
-                          <span>🎸</span>
-                          <span>Cifra</span>
-                        </button>
-
-                        {/* Edit music button */}
-                        <button
-                          type="button"
-                          onClick={() => setEditingMusic(music)}
-                          className="rounded-lg bg-zinc-800 px-2.5 py-1.5 text-[11px] font-medium text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700 transition-colors cursor-pointer flex items-center gap-1"
-                          title="Editar dados da música (letra, cifra, tom, observação)"
-                        >
-                          <span>✏️</span>
-                          <span>Editar</span>
-                        </button>
-
-                        {/* Remove button */}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveItem(item.id)}
-                          className="rounded-lg p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-950/30 transition-colors cursor-pointer"
-                          title="Remover do setlist"
-                        >
-                          ✕
-                        </button>
-                      </div>
-
-                      {/* Mobile 3-Dots Action Menu (visible on mobile screens) */}
-                      <div className="relative sm:hidden">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveMenuId(activeMenuId === item.id ? null : item.id);
-                          }}
-                          className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-800/90 text-zinc-300 hover:text-white hover:bg-zinc-700 active:scale-95 transition-all cursor-pointer border border-zinc-700/60 shadow-sm"
-                          title="Opções da música"
-                          aria-label={`Opções de ${music.title}`}
-                        >
-                          <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                            <circle cx="12" cy="5" r="2" />
-                            <circle cx="12" cy="12" r="2" />
-                            <circle cx="12" cy="19" r="2" />
-                          </svg>
-                        </button>
-
-                        {activeMenuId === item.id && (
-                          <>
-                            {/* Backdrop to close menu */}
-                            <div
-                              className="fixed inset-0 z-40 bg-black/30"
+                      {activeMenuId === item.id && (
+                        <>
+                          {/* Backdrop to close menu */}
+                          <div
+                            className="fixed inset-0 z-40 bg-black/30"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveMenuId(null);
+                            }}
+                          />
+                          {/* Menu popover */}
+                          <div className="absolute right-0 top-full mt-1.5 z-50 w-48 rounded-2xl bg-zinc-800 border border-zinc-700 shadow-2xl p-1.5 flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-150">
+                            <button
+                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setActiveMenuId(null);
+                                setPresentationState({ index, mode: "lyrics" });
                               }}
-                            />
-                            {/* Menu popover */}
-                            <div className="absolute right-0 top-full mt-1.5 z-50 w-48 rounded-2xl bg-zinc-800 border border-zinc-700 shadow-2xl p-1.5 flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-150">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveMenuId(null);
-                                  setPresentationState({ index, mode: "lyrics" });
-                                }}
-                                className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-emerald-400 hover:bg-zinc-700/70 rounded-xl transition-colors text-left cursor-pointer"
-                              >
-                                <span className="text-sm">🎤</span>
-                                <span>Ver Letra</span>
-                              </button>
+                              className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-emerald-400 hover:bg-zinc-700/70 rounded-xl transition-colors text-left cursor-pointer"
+                            >
+                              <span className="text-sm">🎤</span>
+                              <span>Ver Letra</span>
+                            </button>
 
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveMenuId(null);
-                                  setPresentationState({ index, mode: "chords" });
-                                }}
-                                className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-amber-400 hover:bg-zinc-700/70 rounded-xl transition-colors text-left cursor-pointer"
-                              >
-                                <span className="text-sm">🎸</span>
-                                <span>Ver Cifra</span>
-                              </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveMenuId(null);
+                                setPresentationState({ index, mode: "chords" });
+                              }}
+                              className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-amber-400 hover:bg-zinc-700/70 rounded-xl transition-colors text-left cursor-pointer"
+                            >
+                              <span className="text-sm">🎸</span>
+                              <span>Ver Cifra</span>
+                            </button>
 
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveMenuId(null);
-                                  setEditingMusic(music);
-                                }}
-                                className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-700/70 rounded-xl transition-colors text-left cursor-pointer"
-                              >
-                                <span className="text-sm">✏️</span>
-                                <span>Editar Música</span>
-                              </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveMenuId(null);
+                                setEditingMusic(music);
+                              }}
+                              className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-700/70 rounded-xl transition-colors text-left cursor-pointer"
+                            >
+                              <span className="text-sm">✏️</span>
+                              <span>Editar Música</span>
+                            </button>
 
-                              <div className="h-px bg-zinc-700/60 my-0.5" />
+                            <div className="h-px bg-zinc-700/60 my-0.5" />
 
-                              {/* Reorder in mobile menu */}
-                              <div className="flex items-center justify-between px-3 py-1.5 text-[11px] text-zinc-300">
-                                <span className="font-medium">Posição ({index + 1})</span>
-                                <div className="flex items-center gap-1.5">
-                                  <button
-                                    type="button"
-                                    disabled={index === 0}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleMove(index, "up");
-                                    }}
-                                    className="px-2 py-1 rounded-lg bg-zinc-700 text-zinc-200 hover:bg-zinc-600 disabled:opacity-20 transition-colors cursor-pointer font-bold"
-                                    title="Subir posição"
-                                  >
-                                    ▲
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={index === concert.setlist.length - 1}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleMove(index, "down");
-                                    }}
-                                    className="px-2 py-1 rounded-lg bg-zinc-700 text-zinc-200 hover:bg-zinc-600 disabled:opacity-20 transition-colors cursor-pointer font-bold"
-                                    title="Descer posição"
-                                  >
-                                    ▼
-                                  </button>
-                                </div>
+                            {/* Reorder in menu */}
+                            <div className="flex items-center justify-between px-3 py-1.5 text-[11px] text-zinc-300">
+                              <span className="font-medium">Posição ({index + 1})</span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  disabled={index === 0}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleMove(index, "up");
+                                  }}
+                                  className="px-2 py-1 rounded-lg bg-zinc-700 text-zinc-200 hover:bg-zinc-600 disabled:opacity-20 transition-colors cursor-pointer font-bold"
+                                  title="Subir posição"
+                                >
+                                  ▲
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={index === concert.setlist.length - 1}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleMove(index, "down");
+                                  }}
+                                  className="px-2 py-1 rounded-lg bg-zinc-700 text-zinc-200 hover:bg-zinc-600 disabled:opacity-20 transition-colors cursor-pointer font-bold"
+                                  title="Descer posição"
+                                >
+                                  ▼
+                                </button>
                               </div>
-
-                              <div className="h-px bg-zinc-700/60 my-0.5" />
-
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveMenuId(null);
-                                  handleRemoveItem(item.id);
-                                }}
-                                className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-red-400 hover:bg-red-950/40 rounded-xl transition-colors text-left cursor-pointer"
-                              >
-                                <span className="text-sm">🗑️</span>
-                                <span>Remover do Setlist</span>
-                              </button>
                             </div>
-                          </>
-                        )}
-                      </div>
+
+                            <div className="h-px bg-zinc-700/60 my-0.5" />
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveMenuId(null);
+                                handleRemoveItem(item.id);
+                              }}
+                              className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-red-400 hover:bg-red-950/40 rounded-xl transition-colors text-left cursor-pointer"
+                            >
+                              <span className="text-sm">🗑️</span>
+                              <span>Remover do Setlist</span>
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 );
