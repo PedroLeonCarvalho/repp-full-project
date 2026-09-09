@@ -21,26 +21,36 @@
 
 /**
  * Matches a single chord token.
- * Covers: C, Cm, C7, Cmaj7, C#m7, Gb/B, Dsus2, Dadd9, etc.
+ * Covers:
+ * - Simple & minor: C, Cm, C#m, Dbm
+ * - Extensions: C7, C7M, Cmaj7, C9, C11, C13, C6, C6/9, C4/7, C7/4, C7/9, C7/9/11, C7/9/13, C7/13, etc.
+ * - Suspended & added: Csus, Csus2, Csus4, C7sus4, Cadd9, Cadd2, C2, C4, C5
+ * - Diminished & half-diminished: Cdim, C°, Cº, Cø, Cm7(b5), Cm7/5-, Cm7-5, Cm7(#5)
+ * - Augmented: Caug, C+, C7+, C7#5, C7+5, C7b5, C7-5, C7alt
+ * - Alterations & tensions: C7(9), C7(b9), C7(#9), C7(9-), C7(9+), C7(9)(11), C7(b9)(#11), C7M(9), C7(b9,b13), etc.
+ * - Slashed tensions & compound: D6/9, A7/9, A7/9/11, A7/9/13, C7/9+, C7/9-, C7/9#, C7/9b, C7M/9, etc.
+ * - Inverted bass notes: C/E, D/F#, G/B, Am/G, D6/9/F#, A7/9/C#, A7/9/11/E, C7M/9/G, etc.
+ * - Special: N.C., NC
  */
-const CHORD_TOKEN_RE =
-  /^[A-G][b#]?([°º]|m(?:aj|in)?|M(?:aj)?|dim|aug|sus[24]?|add)?[0-9]*(M|\+)?(\([b#]?[0-9]+\))*(\/[A-G][b#]?)?$/;
+export const CHORD_TOKEN_RE =
+  /^(?:N\.?C\.?|[A-G][b#]?(?:[°ºø]|dim|aug|add[0-9]*|m(?:aj|in)?|M(?:aj)?|[o\+\-])?(?:[0-9]*(?:M|maj|min|\+|#|b|-)*(?:sus[249]?|add[0-9]*|alt|dim)?[0-9]*(?:[#b\+\-][0-9]+)*)?(?:\([^\s()]+\))*(?:\/(?:[0-9]+[b#\+\-]?|[b#\+\-][0-9]+|[0-9]+M|M[0-9]+|maj[0-9]+|min[0-9]+|sus[0-9]?|alt))*(?:\([^\s()]+\))*(?:\/[A-G][b#]?)?)$/;
 
-function isChordToken(token: string): boolean {
+export function isChordToken(token: string): boolean {
   return CHORD_TOKEN_RE.test(token);
 }
 
 /**
  * Returns true when the given line looks like a chord line.
- * Heuristic: at least 60 % of non-empty tokens are valid chord names AND
+ * Heuristic: at least 50 % of non-structural tokens are valid chord names AND
  * the line contains at least one chord token.
  */
-function isChordLine(line: string): boolean {
-  const tokens = line.trim().split(/\s+/).filter(Boolean);
+export function isChordLine(line: string): boolean {
+  // Ignore purely structural characters like bar lines | % / - :
+  const tokens = line.trim().split(/\s+/).filter((t) => t && !/^[|%/:.\-()]+$/.test(t));
   if (tokens.length === 0) return false;
 
   const chordCount = tokens.filter(isChordToken).length;
-  return chordCount >= 1 && chordCount / tokens.length >= 0.6;
+  return chordCount >= 1 && chordCount / tokens.length >= 0.5;
 }
 
 // ---------------------------------------------------------------------------
@@ -172,6 +182,7 @@ export function convertCifraToChordPro(cifraLines: string[]): string {
       const nextLine = cifraLines[i + 1];
       const nextIsLyric =
         nextLine !== undefined &&
+        nextLine.trim() !== "" &&
         !isChordLine(nextLine) &&
         !SECTION_HEADER_RE.test(nextLine) &&
         !TAB_LINE_RE.test(nextLine.trim());
