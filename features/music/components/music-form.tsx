@@ -70,6 +70,7 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
   const [searchResults, setSearchResults] = useState<LyricsSearchResult[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [previewSongId, setPreviewSongId] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestSearchQueryRef = useRef<string>("");
@@ -155,6 +156,7 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
     if (!q) {
       latestSearchQueryRef.current = "";
       setSearchResults([]);
+      setPreviewSongId(null);
       setHasSearched(false);
       setSearchError(null);
       return;
@@ -174,13 +176,23 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
       if (!res.success) {
         setSearchError(res.error || "Erro ao consultar a biblioteca de músicas.");
         setSearchResults([]);
+        setPreviewSongId(null);
         return;
       }
       setSearchResults(res.data);
+      if (res.data.length > 0) {
+        setPreviewSongId((prev) => {
+          if (prev && res.data.some((item) => item.id === prev)) return prev;
+          return res.data[0].id;
+        });
+      } else {
+        setPreviewSongId(null);
+      }
     } catch {
       if (latestSearchQueryRef.current === q) {
         setSearchError("Falha de conexão com a biblioteca de músicas.");
         setSearchResults([]);
+        setPreviewSongId(null);
       }
     } finally {
       if (latestSearchQueryRef.current === q) {
@@ -205,6 +217,7 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
     } else if (trimmed.length === 0) {
       latestSearchQueryRef.current = "";
       setSearchResults([]);
+      setPreviewSongId(null);
       setHasSearched(false);
       setSearchError(null);
     }
@@ -455,7 +468,7 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
             )}
 
             {/* Search Results List */}
-            <div className="min-h-[140px] max-h-[360px] overflow-y-auto space-y-2.5 pr-1">
+            <div className="min-h-[140px] max-h-[380px] overflow-y-auto space-y-3 pr-1">
               {isSearchingLyrics ? (
                 <div className="flex flex-col items-center justify-center py-10 text-zinc-400 gap-2">
                   <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
@@ -464,44 +477,102 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
               ) : searchResults.length > 0 ? (
                 searchResults.map((item) => {
                   const durationFormatted = formatDuration(item.duration);
+                  const isPreviewOpen = item.id === previewSongId;
+
                   return (
                     <div
                       key={item.id}
-                      onClick={() => handleSelectCanonicalSong(item)}
-                      className="group p-3.5 rounded-2xl bg-zinc-800/40 border border-zinc-700/60 hover:border-emerald-500/80 hover:bg-zinc-800/80 transition-all cursor-pointer flex items-center justify-between gap-3"
+                      onClick={() => setPreviewSongId(isPreviewOpen ? null : item.id)}
+                      className={`group p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col gap-2.5 ${
+                        isPreviewOpen
+                          ? "bg-emerald-950/20 border-emerald-500/70 shadow-md ring-1 ring-emerald-500/30"
+                          : "bg-zinc-800/40 border-zinc-700/60 hover:border-zinc-500/80 hover:bg-zinc-800/70"
+                      }`}
                     >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
+                      {/* Card Header */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
                           <h4 className="font-semibold text-sm text-zinc-100 group-hover:text-emerald-400 transition-colors truncate">
                             {item.title}
                           </h4>
-                        </div>
-                        <p className="text-xs text-zinc-400 truncate mt-0.5">
-                          {item.artist}
-                          {item.album && (
-                            <span className="text-zinc-500"> • {item.album}</span>
-                          )}
-                          {durationFormatted && (
-                            <span className="text-zinc-500"> • {durationFormatted}</span>
-                          )}
-                        </p>
-                        {item.plainLyrics && (
-                          <p className="text-[11px] text-zinc-500 line-clamp-1 italic mt-1 font-mono">
-                            {item.plainLyrics.split("\n")[0]}...
+                          <p className="text-xs text-zinc-400 truncate mt-0.5">
+                            {item.artist}
+                            {item.album && (
+                              <span className="text-zinc-500"> • {item.album}</span>
+                            )}
+                            {durationFormatted && (
+                              <span className="text-zinc-500"> • {durationFormatted}</span>
+                            )}
                           </p>
-                        )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPreviewSongId(isPreviewOpen ? null : item.id);
+                            }}
+                            className="rounded-lg px-2 py-1 text-[11px] font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50 transition-colors cursor-pointer"
+                            title={isPreviewOpen ? "Ocultar prévia" : "Ver prévia da letra"}
+                          >
+                            {isPreviewOpen ? "▲ Ocultar prévia" : "👁 Prévia"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSelectCanonicalSong(item);
+                            }}
+                            className="rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 group-hover:bg-emerald-500 group-hover:text-zinc-950 px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer active:scale-95"
+                          >
+                            Selecionar
+                          </button>
+                        </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSelectCanonicalSong(item);
-                        }}
-                        className="shrink-0 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 group-hover:bg-emerald-500 group-hover:text-zinc-950 px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer active:scale-95"
-                      >
-                        Selecionar
-                      </button>
+                      {/* Briefing / Lyrics Preview (when expanded) */}
+                      {isPreviewOpen ? (
+                        <div
+                          className="mt-1 pt-2.5 border-t border-zinc-700/60 flex flex-col gap-2"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="flex items-center justify-between text-[11px] text-emerald-400 font-medium">
+                            <span className="flex items-center gap-1">
+                              <span>📝</span>
+                              <span>Briefing da Letra</span>
+                            </span>
+                            <span className="text-[10px] text-zinc-400">
+                              Verifique os versos antes de confirmar
+                            </span>
+                          </div>
+
+                          <pre className="font-mono text-xs text-zinc-200 whitespace-pre-wrap max-h-44 overflow-y-auto rounded-xl bg-zinc-950/90 p-3 border border-zinc-800/80 leading-relaxed select-text">
+                            {item.plainLyrics}
+                          </pre>
+
+                          <div className="flex items-center justify-between pt-1">
+                            <span className="text-[11px] text-zinc-500">
+                              {item.album ? `Álbum: ${item.album}` : "Versão oficial"}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleSelectCanonicalSong(item)}
+                              className="rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold px-4 py-2 text-xs transition-all shadow-md active:scale-95 cursor-pointer flex items-center gap-1.5"
+                            >
+                              <span>✓</span>
+                              <span>Usar esta versão</span>
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        item.plainLyrics && (
+                          <p className="text-[11px] text-zinc-500 line-clamp-1 italic font-mono">
+                            {item.plainLyrics.split("\n")[0]}...
+                          </p>
+                        )
+                      )}
                     </div>
                   );
                 })
