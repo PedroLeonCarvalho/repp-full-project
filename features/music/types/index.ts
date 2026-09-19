@@ -8,12 +8,14 @@ export interface MusicCatalogEntry {
   id: string;
   title: string;
   artist: string;
+  isCustom?: boolean;
 }
 
 // Full catalog entry with content fields (matches DB row)
 export interface MusicCatalogFull extends MusicCatalogEntry {
-  lyrics: string | null;
-  chords: string | null;
+  canonicalLyrics: string | null;
+  canonicalChords: string | null;
+  isCustom: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -53,6 +55,7 @@ export interface CreateMusicInput {
   note?: string | null;
   spotifyLink?: string | null;
   sheetMusicFile?: string | null;
+  isCustom?: boolean;
 }
 
 // Update input: title and artist are immutable after creation

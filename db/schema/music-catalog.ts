@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, unique } from "drizzle-orm/pg-core";
+import { boolean, pgTable, text, timestamp, uuid, unique } from "drizzle-orm/pg-core";
 
 export const musicCatalog = pgTable(
   "music_catalog",
@@ -6,8 +6,9 @@ export const musicCatalog = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     title: text("title").notNull(),
     artist: text("artist").notNull(),
-    lyrics: text("lyrics"),
-    chords: text("chords"),
+    canonicalLyrics: text("canonical_lyrics"),
+    canonicalChords: text("canonical_chords"),
+    isCustom: boolean("is_custom").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -20,3 +21,4 @@ export const musicCatalog = pgTable(
     unique("music_catalog_title_artist_unique").on(table.title, table.artist),
   ]
 );
+

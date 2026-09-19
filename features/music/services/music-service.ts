@@ -46,8 +46,8 @@ function mergeRow(row: {
     customerId: row.cm.customerId,
     title: row.mc.title,
     artist: row.mc.artist,
-    lyrics: row.cm.lyrics ?? row.mc.lyrics,
-    chords: row.cm.chords ?? row.mc.chords,
+    lyrics: row.cm.lyrics ?? row.mc.canonicalLyrics,
+    chords: row.cm.chords ?? row.mc.canonicalChords,
     originalKey: row.cm.originalKey,
     preferredKey: row.cm.preferredKey,
     studying: row.cm.studying,
@@ -72,7 +72,8 @@ export async function createMusic(
     validated.title,
     validated.artist,
     validated.lyrics,
-    validated.chords
+    validated.chords,
+    validated.isCustom ?? false
   );
 
   // 2. Check for duplicate customer music pointing to same catalog entry

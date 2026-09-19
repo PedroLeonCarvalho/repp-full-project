@@ -148,7 +148,7 @@ export async function searchChordsAction(
     }
     return {
       success: false,
-      error: "Erro inesperado ao buscar cifra no CifraClub.",
+      error: "Erro inesperado ao buscar cifra.",
     };
   }
 }

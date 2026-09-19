@@ -1,11 +1,10 @@
-import { or, ilike, asc, and, sql } from "drizzle-orm";
+import { or, ilike, asc, and, sql, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { musicCatalog } from "@/db/schema/music-catalog";
 import type { MusicCatalogEntry, MusicCatalogFull } from "../types";
 
 /**
  * Search the global music catalog by title or artist.
- * Used for autocomplete — requires at least 4 characters.
  * Returns up to 10 results ordered by title.
  */
 export async function searchCatalog(query: string): Promise<MusicCatalogEntry[]> {
@@ -16,6 +15,7 @@ export async function searchCatalog(query: string): Promise<MusicCatalogEntry[]>
       id: musicCatalog.id,
       title: musicCatalog.title,
       artist: musicCatalog.artist,
+      isCustom: musicCatalog.isCustom,
     })
     .from(musicCatalog)
     .where(
@@ -30,13 +30,15 @@ export async function searchCatalog(query: string): Promise<MusicCatalogEntry[]>
 
 /**
  * Find or create a catalog entry by title + artist (case-insensitive match).
+ * Populates canonical lyrics and chords if they are missing.
  * Returns the existing or newly created full catalog record.
  */
 export async function findOrCreateCatalogEntry(
   title: string,
   artist: string,
-  lyrics?: string | null,
-  chords?: string | null
+  canonicalLyrics?: string | null,
+  canonicalChords?: string | null,
+  isCustom: boolean = false
 ): Promise<MusicCatalogFull> {
   const normalizedTitle = title.trim();
   const normalizedArtist = artist.trim();
@@ -54,6 +56,22 @@ export async function findOrCreateCatalogEntry(
     .limit(1);
 
   if (found) {
+    // Populate canonical lyrics/chords if missing on catalog
+    const updates: Partial<typeof musicCatalog.$inferInsert> = {};
+    if (!found.canonicalLyrics && canonicalLyrics?.trim()) {
+      updates.canonicalLyrics = canonicalLyrics.trim();
+    }
+    if (!found.canonicalChords && canonicalChords?.trim()) {
+      updates.canonicalChords = canonicalChords.trim();
+    }
+    if (Object.keys(updates).length > 0) {
+      const [updated] = await db
+        .update(musicCatalog)
+        .set(updates)
+        .where(eq(musicCatalog.id, found.id))
+        .returning();
+      return updated || found;
+    }
     return found;
   }
 
@@ -63,8 +81,9 @@ export async function findOrCreateCatalogEntry(
     .values({
       title: normalizedTitle,
       artist: normalizedArtist,
-      lyrics: lyrics || null,
-      chords: chords || null,
+      canonicalLyrics: canonicalLyrics?.trim() || null,
+      canonicalChords: canonicalChords?.trim() || null,
+      isCustom,
     })
     .onConflictDoNothing()
     .returning();

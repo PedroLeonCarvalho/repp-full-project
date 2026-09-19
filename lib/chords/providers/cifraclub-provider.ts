@@ -56,7 +56,7 @@ export class CifraclubProvider {
 
     if (!artistSlug || !songSlug) {
       throw new Error(
-        "Artista e título são necessários para buscar a cifra no CifraClub."
+        "Artista e título são necessários para buscar a cifra."
       );
     }
 
@@ -82,13 +82,13 @@ export class CifraclubProvider {
 
     if (response.status === 404) {
       throw new Error(
-        `Cifra não encontrada para "${title}" de "${artist}" no CifraClub.`
+        `Cifra não encontrada para "${title}" de "${artist}".`
       );
     }
 
     if (!response.ok) {
       throw new Error(
-        `Erro ao buscar cifra no CifraClub (HTTP ${response.status}).`
+        `Erro ao buscar cifra (HTTP ${response.status}).`
       );
     }
 

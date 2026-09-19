@@ -35,6 +35,7 @@ export const createMusicSchema = z.object({
     .nullable()
     .or(z.literal("")),
   sheetMusicFile: z.string().trim().optional().nullable(),
+  isCustom: z.boolean().default(false),
 });
 
 // Update: title and artist are excluded (immutable after creation)
