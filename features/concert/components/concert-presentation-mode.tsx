@@ -15,6 +15,8 @@ interface ConcertPresentationModeProps {
   concertTitle: string;
   onClose: () => void;
   onComplete?: (itemId: string) => void;
+  onAddToSetlist?: (musicId: string) => Promise<void>;
+  existingMusicIds?: Set<string>;
 }
 
 type LyricsFontSize = "small" | "normal" | "large" | "xlarge" | "xxlarge";
@@ -34,12 +36,16 @@ export function ConcertPresentationMode({
   concertTitle,
   onClose,
   onComplete,
+  onAddToSetlist,
+  existingMusicIds,
 }: ConcertPresentationModeProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [viewMode, setViewMode] = useState<"lyrics" | "chords">(initialMode);
   const [chordsMode, setChordsMode] = useState<"render" | "raw">("render");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [editingMusic, setEditingMusic] = useState<Music | null>(null);
+  const [isAddingToSetlist, setIsAddingToSetlist] = useState(false);
+  const [addedMusicIds, setAddedMusicIds] = useState<Set<string>>(new Set());
   const [lyricsFontSize, setLyricsFontSize] = useState<LyricsFontSize>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("repp_lyrics_font_size");
@@ -334,12 +340,18 @@ export function ConcertPresentationMode({
       {/* Main Content Area (Full Height) */}
       <main className="flex-1 overflow-y-auto px-4 sm:px-12 pt-4 pb-24 max-w-4xl mx-auto w-full">
         {/* In-flow Song Information Header (scrolls with content) */}
-        <div className="mb-4 pb-3 border-b border-zinc-800/70 flex items-center justify-between gap-3 pr-44 sm:pr-64">
+        <div className="mb-4 pb-3 border-b border-zinc-800/70 flex items-center justify-between gap-3 pr-44 sm:pr-64 flex-wrap">
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-500 font-black text-zinc-950 text-xs shrink-0">
-                #{currentIndex + 1}
-              </span>
+              {currentItem.id.startsWith("temp-") && !addedMusicIds.has(music.id) ? (
+                <span className="flex items-center justify-center rounded-lg bg-zinc-800 border border-zinc-700 px-2 py-0.5 font-bold text-zinc-300 text-xs shrink-0">
+                  Repertório
+                </span>
+              ) : (
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-500 font-black text-zinc-950 text-xs shrink-0">
+                  #{currentIndex + 1}
+                </span>
+              )}
               <h1 className="text-base sm:text-lg font-black text-zinc-100 truncate tracking-tight">
                 {music.title}
               </h1>
@@ -347,6 +359,26 @@ export function ConcertPresentationMode({
                 <span className="rounded-md bg-emerald-950 border border-emerald-500/70 px-2 py-0.5 font-mono font-bold text-xs text-emerald-400">
                   {keyDisplay}
                 </span>
+              )}
+              {onAddToSetlist && (currentItem.id.startsWith("temp-") || (existingMusicIds && !existingMusicIds.has(music.id))) && !addedMusicIds.has(music.id) && (
+                <button
+                  type="button"
+                  disabled={isAddingToSetlist}
+                  onClick={async () => {
+                    setIsAddingToSetlist(true);
+                    try {
+                      await onAddToSetlist(music.id);
+                      setAddedMusicIds((prev) => new Set(prev).add(music.id));
+                    } finally {
+                      setIsAddingToSetlist(false);
+                    }
+                  }}
+                  className="rounded-lg bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-bold px-2.5 py-0.5 text-xs transition-all cursor-pointer inline-flex items-center gap-1 shrink-0 disabled:opacity-50"
+                  title="Adicionar esta música ao setlist deste show"
+                >
+                  <span>+</span>
+                  <span>{isAddingToSetlist ? "Adicionando..." : "Adicionar ao Setlist"}</span>
+                </button>
               )}
               <button
                 type="button"
@@ -396,8 +428,6 @@ export function ConcertPresentationMode({
           hasChords ? (
             <ChordsViewer
               chords={music.chords || ""}
-              originalKey={music.originalKey}
-              preferredKey={music.preferredKey}
               fontSize="large"
               mode={chordsMode}
             />

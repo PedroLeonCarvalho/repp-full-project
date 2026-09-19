@@ -249,8 +249,6 @@ export function PublicSharedSetlistView({
             hasChords ? (
               <ChordsViewer
                 chords={currentMusic.chords || ""}
-                originalKey={currentMusic.originalKey}
-                preferredKey={currentMusic.preferredKey}
                 fontSize="large"
                 mode={chordsMode}
               />

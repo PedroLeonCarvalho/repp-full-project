@@ -1,13 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  transposeChordPro,
-  transposeKey,
-  ALL_MAJOR_KEYS,
-  ALL_MINOR_KEYS,
-  getSemitoneDistance,
-} from "@/lib/chordpro/transposer";
+import { transposeChordPro } from "@/lib/chordpro/transposer";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -105,13 +99,11 @@ const FONT_SIZE_CLASSES = {
 
 interface ChordsViewerProps {
   chords: string;
-  originalKey?: string | null;
-  preferredKey?: string | null;
   fontSize?: "normal" | "large" | "xlarge" | "xxlarge";
   /** "render" shows formatted chords+lyrics; "raw" shows plain monospace text */
   mode?: "render" | "raw";
   showTransposer?: boolean;
-  onSavePreferredKey?: (newKey: string) => Promise<void> | void;
+  onSaveChords?: (newChords: string) => Promise<void> | void;
 }
 
 // ---------------------------------------------------------------------------
@@ -120,22 +112,13 @@ interface ChordsViewerProps {
 
 export function ChordsViewer({
   chords,
-  originalKey,
-  preferredKey,
   fontSize = "normal",
   mode = "render",
   showTransposer = true,
-  onSavePreferredKey,
+  onSaveChords,
 }: ChordsViewerProps) {
-  // Compute initial offset between originalKey and preferredKey if both present
-  const baseKey = originalKey || preferredKey || "";
-  const initialOffset =
-    originalKey && preferredKey && originalKey !== preferredKey
-      ? getSemitoneDistance(originalKey, preferredKey)
-      : 0;
-
-  const [semitoneOffset, setSemitoneOffset] = useState<number>(initialOffset);
-  const [isSavingKey, setIsSavingKey] = useState(false);
+  const [semitoneOffset, setSemitoneOffset] = useState<number>(0);
+  const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   if (!chords || !chords.trim()) {
@@ -146,24 +129,14 @@ export function ChordsViewer({
     );
   }
 
-  // Calculate the currently transposed key
-  const currentKey = baseKey ? transposeKey(baseKey, semitoneOffset) : null;
-
-  // Transpose the ChordPro content in real-time
+  // Transpose the ChordPro content in real-time based on semitone shift
   const effectiveChords =
     semitoneOffset !== 0
-      ? transposeChordPro(chords, semitoneOffset, currentKey || undefined)
+      ? transposeChordPro(chords, semitoneOffset)
       : chords;
 
   const handleShift = (delta: number) => {
     setSemitoneOffset((prev) => prev + delta);
-    setSaveSuccess(false);
-  };
-
-  const handleSelectKey = (targetKey: string) => {
-    if (!baseKey) return;
-    const dist = getSemitoneDistance(baseKey, targetKey);
-    setSemitoneOffset(dist);
     setSaveSuccess(false);
   };
 
@@ -172,22 +145,20 @@ export function ChordsViewer({
     setSaveSuccess(false);
   };
 
-  const handleSaveKey = async () => {
-    if (!currentKey || !onSavePreferredKey) return;
+  const handleSaveChords = async () => {
+    if (semitoneOffset === 0 || !onSaveChords) return;
     try {
-      setIsSavingKey(true);
-      await onSavePreferredKey(currentKey);
+      setIsSaving(true);
+      await onSaveChords(effectiveChords);
+      setSemitoneOffset(0);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch {
-      // Ignore
+      // Ignore error
     } finally {
-      setIsSavingKey(false);
+      setIsSaving(false);
     }
   };
-
-  const isMinor = baseKey.endsWith("m") && !baseKey.endsWith("maj");
-  const availableKeys = isMinor ? ALL_MINOR_KEYS : ALL_MAJOR_KEYS;
 
   const offsetLabel =
     semitoneOffset > 0
@@ -201,9 +172,9 @@ export function ChordsViewer({
       {/* Transposition Control Toolbar */}
       {showTransposer && (
         <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-xl bg-zinc-950/70 border border-zinc-800 p-2.5 sm:p-3 text-xs">
-          {/* Left: Semitone Stepper [-] [Tom] [+] */}
+          {/* Left: Stepper buttons without tone in the middle */}
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider hidden sm:inline">
+            <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
               Tom:
             </span>
 
@@ -211,80 +182,71 @@ export function ChordsViewer({
             <button
               type="button"
               onClick={() => handleShift(-1)}
-              className="rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-2.5 py-1 text-xs font-bold text-zinc-200 hover:text-white transition-all active:scale-95 cursor-pointer flex items-center gap-1"
+              className="rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-3 py-1.5 text-xs font-bold text-zinc-200 hover:text-white transition-all active:scale-95 cursor-pointer flex items-center gap-1"
               title="Abaixar meio-tom (-1 semitom)"
             >
               <span>-1/2</span>
             </button>
 
-            {/* Current Key Display Badge */}
-            <div className="flex items-center gap-1.5 rounded-lg bg-zinc-900 border border-emerald-500/40 px-3 py-1 font-mono">
-              <span className="font-black text-sm text-emerald-400">
-                {currentKey || (semitoneOffset !== 0 ? `Tom (${offsetLabel})` : "Tom Padrão")}
-              </span>
-              {semitoneOffset !== 0 && (
-                <span className="text-[10px] text-zinc-400 font-sans">
-                  ({offsetLabel})
-                </span>
-              )}
-            </div>
-
             {/* Increment Half-Step */}
             <button
               type="button"
               onClick={() => handleShift(1)}
-              className="rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-2.5 py-1 text-xs font-bold text-zinc-200 hover:text-white transition-all active:scale-95 cursor-pointer flex items-center gap-1"
+              className="rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-3 py-1.5 text-xs font-bold text-zinc-200 hover:text-white transition-all active:scale-95 cursor-pointer flex items-center gap-1"
               title="Aumentar meio-tom (+1 semitom)"
             >
               <span>+1/2</span>
             </button>
 
-            {/* Reset Button */}
+            {/* Reset Button (shows current offset when shifted) */}
             {semitoneOffset !== 0 && (
               <button
                 type="button"
                 onClick={handleReset}
-                className="rounded-lg bg-zinc-800/80 hover:bg-zinc-700 px-2 py-1 text-[11px] text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
-                title="Voltar ao tom original"
+                className="rounded-lg bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-700/60 px-2.5 py-1.5 text-[11px] text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
+                title="Voltar ao tom original do texto"
               >
-                Resetar
+                Resetar ({offsetLabel})
               </button>
             )}
           </div>
 
-          {/* Right: Key Dropdown Selector & Optional Save Button */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {baseKey && (
-              <select
-                value={currentKey || baseKey}
-                onChange={(e) => handleSelectKey(e.target.value)}
-                className="rounded-lg bg-zinc-900 border border-zinc-700 px-2.5 py-1 text-xs font-bold text-zinc-200 focus:outline-none focus:border-emerald-500 cursor-pointer"
-                title="Mudar diretamente para outra tonalidade"
-              >
-                {availableKeys.map((k) => (
-                  <option key={k} value={k}>
-                    {k} {k === baseKey ? "(Original)" : ""}
-                  </option>
-                ))}
-              </select>
-            )}
-
-            {onSavePreferredKey && currentKey && (
+          {/* Right: Save Transposed Chords Button */}
+          {onSaveChords && (
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                disabled={isSavingKey}
-                onClick={handleSaveKey}
-                className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center gap-1 ${
+                disabled={isSaving || semitoneOffset === 0}
+                onClick={handleSaveChords}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 ${
                   saveSuccess
                     ? "bg-emerald-500 text-zinc-950 font-black"
-                    : "bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40"
+                    : semitoneOffset !== 0
+                    ? "bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold shadow-md shadow-amber-500/20"
+                    : "bg-zinc-800 text-zinc-500 border border-zinc-700/60 opacity-60 cursor-not-allowed"
                 }`}
-                title="Salvar esta tonalidade como tom preferido para futuros shows"
+                title={
+                  semitoneOffset !== 0
+                    ? "Salvar a cifra com o texto alterado para esta tonalidade"
+                    : "Altere o tom para salvar a nova cifra"
+                }
               >
-                {saveSuccess ? "✓ Salvo!" : isSavingKey ? "Salvando..." : "Salvar Tom"}
+                {saveSuccess ? (
+                  <>
+                    <span>✓</span>
+                    <span>Cifra Salva!</span>
+                  </>
+                ) : isSaving ? (
+                  <span>Salvando cifra...</span>
+                ) : (
+                  <>
+                    <span>💾</span>
+                    <span>Salvar Cifra</span>
+                  </>
+                )}
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 

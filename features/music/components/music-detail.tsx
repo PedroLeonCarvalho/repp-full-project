@@ -28,7 +28,8 @@ export function MusicDetail({
 
   const defaultTab = initialTab || (hasLyrics ? "lyrics" : hasChords ? "chords" : "lyrics");
   const [activeTab, setActiveTab] = useState<"lyrics" | "chords">(defaultTab);
-  const [preferredKey, setPreferredKey] = useState<MusicalKey | null>(music.preferredKey ?? null);
+  const [preferredKey] = useState<MusicalKey | null>(music.preferredKey ?? null);
+  const [currentChords, setCurrentChords] = useState<string>(music.chords || "");
   const [isStageMode, setIsStageMode] = useState(false);
   const [chordsMode, setChordsMode] = useState<"render" | "raw">("render");
 
@@ -46,6 +47,7 @@ export function MusicDetail({
             music: {
               ...music,
               preferredKey,
+              chords: currentChords,
             },
           },
         ]}
@@ -56,11 +58,10 @@ export function MusicDetail({
     );
   }
 
-  const handleSavePreferredKey = async (newKey: string) => {
-    const musicalKey = newKey as MusicalKey;
-    const res = await updateMusicAction(music.id, { preferredKey: musicalKey });
+  const handleSaveChords = async (newChords: string) => {
+    const res = await updateMusicAction(music.id, { chords: newChords });
     if (res.success) {
-      setPreferredKey(musicalKey);
+      setCurrentChords(newChords);
     }
   };
 
@@ -308,12 +309,10 @@ export function MusicDetail({
 
               {hasChords ? (
                 <ChordsViewer
-                  chords={music.chords || ""}
-                  originalKey={music.originalKey}
-                  preferredKey={preferredKey}
+                  chords={currentChords}
                   fontSize="normal"
                   mode={chordsMode}
-                  onSavePreferredKey={handleSavePreferredKey}
+                  onSaveChords={handleSaveChords}
                 />
               ) : (
                 <div className="py-8 text-center text-zinc-500">

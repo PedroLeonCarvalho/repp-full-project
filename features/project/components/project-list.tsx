@@ -381,20 +381,20 @@ export function ProjectList({
                               }`}
                             >
                               <div
-                                onClick={() => onOpenConcertDetail(concert.id)}
-                                className="flex-1 min-w-0 cursor-pointer"
+                                onClick={() => onOpenConcertSetlist(concert.id)}
+                                className="flex-1 min-w-0 cursor-pointer group/item"
                               >
                                 {/* Line 1: Concert Title */}
                                 <div
                                   className={`font-semibold text-xs sm:text-sm truncate transition-colors ${
                                     isPassed
                                       ? "line-through text-zinc-500 hover:text-zinc-400"
-                                      : "text-zinc-100 hover:text-emerald-400"
+                                      : "text-zinc-100 group-hover/item:text-emerald-400"
                                   }`}
                                   title={
                                     isPassed
-                                      ? `${concert.title} (Show já realizado)`
-                                      : concert.title
+                                      ? `${concert.title} (Show já realizado) — Clique para abrir o Modo Palco`
+                                      : `${concert.title} — Clique para abrir o Modo Palco`
                                   }
                                 >
                                   {concert.title}
