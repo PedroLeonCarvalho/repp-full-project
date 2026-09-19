@@ -71,6 +71,17 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
   const [hasSearched, setHasSearched] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestSearchQueryRef = useRef<string>("");
+
+  // Clean up debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+      }
+    };
+  }, []);
 
   // Form fields
   const [title, setTitle] = useState(initialData?.title || "");
@@ -133,17 +144,33 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
     setGenres((prev) => prev.filter((g) => g !== genreToRemove));
   };
 
-  // Perform Canonical Lyrics Search
+  // Perform Canonical Lyrics Search (Immediate or Debounced)
   const handlePerformLyricsSearch = async (queryText?: string) => {
-    const q = (queryText ?? searchQuery).trim();
-    if (!q) return;
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+      searchDebounceRef.current = null;
+    }
 
+    const q = (queryText ?? searchQuery).trim();
+    if (!q) {
+      latestSearchQueryRef.current = "";
+      setSearchResults([]);
+      setHasSearched(false);
+      setSearchError(null);
+      return;
+    }
+
+    latestSearchQueryRef.current = q;
     setIsSearchingLyrics(true);
     setSearchError(null);
     setHasSearched(true);
 
     try {
       const res = await searchLyricsAction({ title: q });
+
+      // Discard stale response if user continued typing
+      if (latestSearchQueryRef.current !== q) return;
+
       if (!res.success) {
         setSearchError(res.error || "Erro ao consultar a biblioteca de músicas.");
         setSearchResults([]);
@@ -151,10 +178,35 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
       }
       setSearchResults(res.data);
     } catch {
-      setSearchError("Falha de conexão com a biblioteca de músicas.");
-      setSearchResults([]);
+      if (latestSearchQueryRef.current === q) {
+        setSearchError("Falha de conexão com a biblioteca de músicas.");
+        setSearchResults([]);
+      }
     } finally {
-      setIsSearchingLyrics(false);
+      if (latestSearchQueryRef.current === q) {
+        setIsSearchingLyrics(false);
+      }
+    }
+  };
+
+  // Handle incremental / elastic typing in the search box
+  const handleSearchQueryChange = (value: string) => {
+    setSearchQuery(value);
+
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+
+    const trimmed = value.trim();
+    if (trimmed.length >= 3) {
+      searchDebounceRef.current = setTimeout(() => {
+        void handlePerformLyricsSearch(trimmed);
+      }, 350);
+    } else if (trimmed.length === 0) {
+      latestSearchQueryRef.current = "";
+      setSearchResults([]);
+      setHasSearched(false);
+      setSearchError(null);
     }
   };
 
@@ -366,7 +418,7 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
                   ref={searchInputRef}
                   type="text"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => handleSearchQueryChange(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
@@ -374,11 +426,16 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
                     }
                   }}
                   placeholder="Ex: Como Nossos Pais, Elis Regina..."
-                  className="w-full rounded-xl bg-zinc-800/90 pl-9 pr-3.5 py-2.5 text-sm text-zinc-100 border border-zinc-700/60 focus:border-emerald-500 focus:outline-none placeholder:text-zinc-500"
+                  className="w-full rounded-xl bg-zinc-800/90 pl-9 pr-8 py-2.5 text-sm text-zinc-100 border border-zinc-700/60 focus:border-emerald-500 focus:outline-none placeholder:text-zinc-500"
                 />
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs">
                   🔍
                 </span>
+                {isSearchingLyrics && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+                  </div>
+                )}
               </div>
               <button
                 type="button"
