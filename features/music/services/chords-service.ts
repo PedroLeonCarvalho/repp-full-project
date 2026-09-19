@@ -13,9 +13,10 @@ export class ChordsService {
 
   async searchChords(
     title: string,
-    artist: string
+    artist: string,
+    slugs?: { artistSlug?: string; songSlug?: string }
   ): Promise<ChordSearchResult> {
-    const raw = await this.provider.fetchChords(artist, title);
+    const raw = await this.provider.fetchChords(artist, title, slugs);
 
     const chordpro = convertCifraToChordPro(raw.cifra);
 

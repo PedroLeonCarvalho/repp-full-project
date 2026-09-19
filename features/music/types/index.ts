@@ -114,3 +114,12 @@ export interface ChordSearchResult {
   chordpro: string;
 }
 
+/** Suggestion item returned by the real-time chord autocomplete search */
+export interface ChordSuggestion {
+  title: string;
+  artist: string;
+  songSlug: string;
+  artistSlug: string;
+}
+
+

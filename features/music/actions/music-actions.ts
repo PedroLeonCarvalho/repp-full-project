@@ -136,11 +136,12 @@ export async function searchLyricsAction(
 
 export async function searchChordsAction(
   title: string,
-  artist: string
+  artist: string,
+  slugs?: { artistSlug?: string; songSlug?: string }
 ): Promise<ActionResult<ChordSearchResult>> {
   try {
     await requireAuthCustomerId();
-    const result = await chordsService.searchChords(title, artist);
+    const result = await chordsService.searchChords(title, artist, slugs);
     return { success: true, data: result };
   } catch (err) {
     if (err instanceof Error) {

@@ -42,17 +42,18 @@ export class CifraclubProvider {
   }
 
   /**
-   * Fetches chord data for the given artist + song title from the REPP
-   * CifraClub API.
+   * Fetches chord data for the given artist + song title (or explicit slugs)
+   * from the REPP CifraClub API.
    *
    * @throws Error with a user-friendly Portuguese message on failure.
    */
   async fetchChords(
     artist: string,
-    title: string
+    title: string,
+    slugs?: { artistSlug?: string; songSlug?: string }
   ): Promise<ReppCifraClubApiResponse> {
-    const artistSlug = toSlug(artist);
-    const songSlug = toSlug(title);
+    const artistSlug = slugs?.artistSlug || toSlug(artist);
+    const songSlug = slugs?.songSlug || toSlug(title);
 
     if (!artistSlug || !songSlug) {
       throw new Error(

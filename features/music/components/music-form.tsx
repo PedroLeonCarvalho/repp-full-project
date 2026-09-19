@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MUSICAL_KEYS, MUSIC_GENRES } from "@/db/schema/enums";
 import type {
+  ChordSuggestion,
   CreateMusicInput,
   LyricsSearchResult,
   Music,
@@ -12,6 +13,7 @@ import type {
 } from "../types";
 import { GENRE_LABELS } from "./music-filters";
 import { searchLyricsAction, searchChordsAction } from "../actions/music-actions";
+import { ChordSearchCombobox } from "./chord-search-combobox";
 
 interface MusicFormProps {
   initialData?: Music | null;
@@ -113,10 +115,7 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
     initialData?.sheetMusicFile || ""
   );
 
-  // Decoupled chord search state (Alternative inputs)
-  const [altArtist, setAltArtist] = useState("");
-  const [altTitle, setAltTitle] = useState("");
-  const [showAltChordSearch, setShowAltChordSearch] = useState(false);
+  // Decoupled chord search state
   const [isSearchingChords, setIsSearchingChords] = useState(false);
   const [chordsFeedback, setChordsFeedback] = useState<{
     type: "info" | "success" | "warning" | "error";
@@ -223,22 +222,29 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
     }
   };
 
-  // Trigger chord search for a specific title and artist
-  const fetchChords = async (targetTitle: string, targetArtist: string) => {
+  // Trigger chord search for a specific title and artist or explicit slugs
+  const fetchChords = async (
+    targetTitle: string,
+    targetArtist: string,
+    slugs?: { artistSlug?: string; songSlug?: string }
+  ) => {
     if (!targetTitle.trim() || !targetArtist.trim()) return;
 
     setIsSearchingChords(true);
     setChordsFeedback(null);
 
     try {
-      const res = await searchChordsAction(targetTitle.trim(), targetArtist.trim());
+      const res = await searchChordsAction(
+        targetTitle.trim(),
+        targetArtist.trim(),
+        slugs
+      );
 
       if (!res.success) {
         setChordsFeedback({
           type: "warning",
-          text: "Cifra não encontrada para esta grafia de artista/título.",
+          text: "Cifra não encontrada para esta busca.",
         });
-        setShowAltChordSearch(true);
         return;
       }
 
@@ -251,17 +257,25 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
 
       setChordsFeedback({
         type: "success",
-        text: "✓ Cifra carregada com sucesso!",
+        text: `✓ Cifra de "${found.title}" (${found.artist}) carregada com sucesso!`,
       });
     } catch {
       setChordsFeedback({
         type: "error",
         text: "Falha de conexão com o servidor de cifras.",
       });
-      setShowAltChordSearch(true);
     } finally {
       setIsSearchingChords(false);
     }
+  };
+
+  // When a user selects a suggestion in the real-time chord combobox
+  const handleSelectChordSuggestion = (suggestion: ChordSuggestion) => {
+    // IMPORTANT: Keep canonical title and artist untouched
+    void fetchChords(suggestion.title, suggestion.artist, {
+      artistSlug: suggestion.artistSlug,
+      songSlug: suggestion.songSlug,
+    });
   };
 
   // When a user selects a candidate from the canonical search results
@@ -271,11 +285,6 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
     setLyrics(item.plainLyrics);
     setIsManual(false);
     setViewMode("form");
-
-    // Pre-populate alternative search inputs for user convenience
-    setAltTitle(item.title);
-    setAltArtist(item.artist);
-    setShowAltChordSearch(false);
 
     // Auto-search chords in background
     void fetchChords(item.title, item.artist);
@@ -288,9 +297,6 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
     setArtist("");
     setLyrics("");
     setChords("");
-    setAltTitle("");
-    setAltArtist("");
-    setShowAltChordSearch(false);
     setChordsFeedback(null);
     setViewMode("form");
   };
@@ -299,29 +305,6 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
   const handleBackToSearch = () => {
     setViewMode("search");
     setChordsFeedback(null);
-  };
-
-  // Handle Decoupled Chord Search (Manual or Alternative terms)
-  const handleSearchAlternativeChords = async () => {
-    const searchArtistName = altArtist.trim() || artist.trim();
-    const searchSongTitle = altTitle.trim() || title.trim();
-
-    if (!searchSongTitle) {
-      setChordsFeedback({
-        type: "error",
-        text: "Informe o título para buscar a cifra.",
-      });
-      return;
-    }
-    if (!searchArtistName) {
-      setChordsFeedback({
-        type: "error",
-        text: "Informe o artista para buscar a cifra.",
-      });
-      return;
-    }
-
-    await fetchChords(searchSongTitle, searchArtistName);
   };
 
   // Form Submission
@@ -694,28 +677,31 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
               )}
             </div>
 
-            {/* ─── Chords Section (Decoupled with Feedback & Alternative Inputs) ─── */}
+            {/* ─── Chords Section (Decoupled with Autocomplete Combobox & Feedback) ─── */}
             <div className="rounded-2xl bg-zinc-850/60 border border-zinc-800 p-3.5 space-y-2.5">
               <div className="flex items-center justify-between">
                 <label className="block text-xs font-medium text-zinc-200">
                   Cifra / Acordes
                 </label>
-                <div className="flex items-center gap-2">
-                  {isSearchingChords ? (
-                    <span className="text-xs text-amber-400 flex items-center gap-1">
-                      <span className="h-3 w-3 animate-spin rounded-full border-2 border-amber-400 border-t-transparent inline-block" />
-                      Buscando cifra...
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setShowAltChordSearch((prev) => !prev)}
-                      className="text-[11px] text-amber-400 hover:text-amber-300 underline underline-offset-4 cursor-pointer"
-                    >
-                      {showAltChordSearch ? "Ocultar busca de cifra" : "Buscar / Ajustar Cifra"}
-                    </button>
-                  )}
-                </div>
+                {isSearchingChords && (
+                  <span className="text-xs text-amber-400 flex items-center gap-1">
+                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-amber-400 border-t-transparent inline-block" />
+                    Carregando cifra...
+                  </span>
+                )}
+              </div>
+
+              {/* Real-time Autocomplete Combobox */}
+              <div className="space-y-1">
+                <ChordSearchCombobox
+                  onSelectSuggestion={handleSelectChordSuggestion}
+                  isLoadingChords={isSearchingChords}
+                  initialQuery={title && artist ? `${title} — ${artist}` : title || ""}
+                  placeholder="Buscar cifra por título ou artista (autocomplete)..."
+                />
+                <p className="text-[11px] text-zinc-500">
+                  Digite a partir de 3 letras para buscar e associar a cifra exata sem alterar o título e artista canônicos.
+                </p>
               </div>
 
               {/* Chords Status Feedback */}
@@ -739,41 +725,6 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
                   >
                     ✕
                   </button>
-                </div>
-              )}
-
-              {/* Decoupled / Alternative Chord Search Panel */}
-              {showAltChordSearch && (
-                <div className="rounded-xl bg-zinc-800/60 border border-zinc-700/60 p-3 space-y-2.5">
-                  <p className="text-[11px] text-zinc-400">
-                    Se a cifra não foi encontrada automaticamente com a grafia oficial, informe termos alternativos para buscar sem alterar o título ou artista da música.
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <input
-                      type="text"
-                      value={altTitle}
-                      onChange={(e) => setAltTitle(e.target.value)}
-                      placeholder={title || "Título alternativo para cifra"}
-                      className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs text-zinc-100 border border-zinc-700 focus:border-amber-500 focus:outline-none placeholder:text-zinc-600"
-                    />
-                    <input
-                      type="text"
-                      value={altArtist}
-                      onChange={(e) => setAltArtist(e.target.value)}
-                      placeholder={artist || "Artista alternativo para cifra"}
-                      className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs text-zinc-100 border border-zinc-700 focus:border-amber-500 focus:outline-none placeholder:text-zinc-600"
-                    />
-                  </div>
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => void handleSearchAlternativeChords()}
-                      disabled={isSearchingChords}
-                      className="rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold px-3 py-1.5 text-xs transition-colors cursor-pointer disabled:opacity-50"
-                    >
-                      {isSearchingChords ? "Consultando..." : "Buscar Cifra"}
-                    </button>
-                  </div>
                 </div>
               )}
 
