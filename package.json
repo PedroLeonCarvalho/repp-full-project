@@ -4,6 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:remote": "CIFRACLUB_API_ENV=remote next dev",
+    "dev:local": "CIFRACLUB_API_ENV=local next dev",
+    "api:cifraclub": "bash ../cifraclub-api/run_local.sh",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

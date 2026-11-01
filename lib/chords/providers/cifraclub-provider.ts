@@ -27,6 +27,40 @@ function toSlug(text: string): string {
     .replace(/^-|-$/g, "");
 }
 
+export const CIFRACLUB_REMOTE_URL = "https://repp-cifraclub-api.onrender.com";
+export const CIFRACLUB_LOCAL_URL = "http://localhost:5000";
+
+/**
+ * Resolves the CifraClub API base URL based on configuration and environment:
+ * 1. Direct constructor parameter (if provided)
+ * 2. Explicit process.env.CIFRACLUB_API_BASE_URL
+ * 3. process.env.CIFRACLUB_API_ENV ("local" or "remote")
+ * 4. Automatic default:
+ *    - In production (deploy) -> CIFRACLUB_REMOTE_URL
+ *    - In development/testing -> CIFRACLUB_LOCAL_URL
+ */
+export function getCifraclubApiBaseUrl(customBaseUrl?: string): string {
+  if (customBaseUrl) {
+    return customBaseUrl;
+  }
+
+  if (process.env.CIFRACLUB_API_BASE_URL) {
+    return process.env.CIFRACLUB_API_BASE_URL;
+  }
+
+  const envMode = process.env.CIFRACLUB_API_ENV?.toLowerCase().trim();
+  if (envMode === "remote") {
+    return CIFRACLUB_REMOTE_URL;
+  }
+  if (envMode === "local") {
+    return CIFRACLUB_LOCAL_URL;
+  }
+
+  return process.env.NODE_ENV === "production"
+    ? CIFRACLUB_REMOTE_URL
+    : CIFRACLUB_LOCAL_URL;
+}
+
 // ---------------------------------------------------------------------------
 // Provider
 // ---------------------------------------------------------------------------
@@ -35,10 +69,15 @@ export class CifraclubProvider {
   private readonly baseUrl: string;
 
   constructor(baseUrl?: string) {
-    this.baseUrl =
-      baseUrl ??
-      process.env.CIFRACLUB_API_BASE_URL ??
-      "https://repp-cifraclub-api.onrender.com";
+    this.baseUrl = getCifraclubApiBaseUrl(baseUrl);
+  }
+
+
+  /**
+   * Returns the currently configured base URL for CifraClub API.
+   */
+  getBaseUrl(): string {
+    return this.baseUrl;
   }
 
   /**
@@ -76,6 +115,16 @@ export class CifraclubProvider {
           "O servidor de cifras demorou muito para responder. Tente novamente."
         );
       }
+
+      const isLocal =
+        this.baseUrl.includes("localhost") || this.baseUrl.includes("127.0.0.1");
+
+      if (isLocal) {
+        throw new Error(
+          `Não foi possível conectar à API local de cifras (${this.baseUrl}). Certifique-se de que ela está rodando (execute 'make run-local' ou './run_local.sh' no projeto cifraclub-api) ou configure CIFRACLUB_API_ENV=remote.`
+        );
+      }
+
       throw new Error(
         "Não foi possível conectar ao servidor de cifras. Verifique sua conexão."
       );
@@ -93,7 +142,18 @@ export class CifraclubProvider {
       );
     }
 
-    const data = (await response.json()) as ReppCifraClubApiResponse;
+    const data = (await response.json()) as ReppCifraClubApiResponse & {
+      error?: string;
+    };
+
+    if (data.error) {
+      if (data.error.includes("404")) {
+        throw new Error(`Cifra não encontrada para "${title}" de "${artist}".`);
+      }
+      throw new Error(`Erro retornado pela API de cifras: ${data.error}`);
+    }
+
     return data;
   }
 }
+
