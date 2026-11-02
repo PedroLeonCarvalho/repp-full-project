@@ -27,7 +27,10 @@ export const createConcertSchema = z.object({
     .min(1, "O título ou nome do evento é obrigatório")
     .max(255, "O título deve ter no máximo 255 caracteres"),
   location: optionalString(255, "O local deve ter no máximo 255 caracteres"),
-  presentationDate: z.union([z.string().min(1, "A data da apresentação é obrigatória"), z.date()]),
+  presentationDate: z.preprocess(
+    (val) => (typeof val === "string" && val.trim() === "" ? null : val),
+    z.union([z.string(), z.date()]).nullable().optional()
+  ),
   startTime: optionalString(10),
   finishTime: optionalString(10),
   durationInHours: z.number().min(0).max(48).optional().nullable(),
@@ -48,7 +51,10 @@ export const updateConcertSchema = z.object({
     .max(255, "O título deve ter no máximo 255 caracteres")
     .optional(),
   location: optionalString(255),
-  presentationDate: z.union([z.string(), z.date()]).optional(),
+  presentationDate: z.preprocess(
+    (val) => (typeof val === "string" && val.trim() === "" ? null : val),
+    z.union([z.string(), z.date()]).nullable().optional()
+  ),
   startTime: optionalString(10),
   finishTime: optionalString(10),
   durationInHours: z.number().min(0).max(48).optional().nullable(),

@@ -19,7 +19,6 @@ import {
 import { ProjectList } from "./project-list";
 import { ProjectForm } from "./project-form";
 import { ConcertForm } from "@/features/concert/components/concert-form";
-import { ConcertDetail } from "@/features/concert/components/concert-detail";
 import { ConcertLiveSetlist } from "@/features/concert/components/concert-live-setlist";
 import { ShareSetlistModal } from "@/features/concert/components/share-setlist-modal";
 
@@ -47,9 +46,6 @@ export function ProjectView() {
     id: string;
     name: string;
   } | null>(null);
-  const [selectedConcertIdForDetail, setSelectedConcertIdForDetail] = useState<
-    string | null
-  >(null);
   const [selectedConcertIdForSetlist, setSelectedConcertIdForSetlist] = useState<
     string | null
   >(null);
@@ -349,9 +345,6 @@ export function ProjectView() {
           }}
           onOpenCreateConcert={handleOpenCreateConcert}
           onOpenEditConcert={handleOpenEditConcert}
-          onOpenConcertDetail={(concertId) =>
-            setSelectedConcertIdForDetail(concertId)
-          }
           onOpenConcertSetlist={(concertId) =>
             setSelectedConcertIdForSetlist(concertId)
           }
@@ -388,29 +381,7 @@ export function ProjectView() {
         />
       )}
 
-      {/* Concert Detail & Setlist Manager Modal (Ver Dados) */}
-      {selectedConcertIdForDetail && (
-        <ConcertDetail
-          concertId={selectedConcertIdForDetail}
-          onClose={() => {
-            setSelectedConcertIdForDetail(null);
-            void refreshProjects();
-          }}
-          onOpenLiveSetlist={() => {
-            const cid = selectedConcertIdForDetail;
-            setSelectedConcertIdForDetail(null);
-            setSelectedConcertIdForSetlist(cid);
-          }}
-          onEdit={(concert) => {
-            setSelectedConcertIdForDetail(null);
-            handleOpenEditConcert(concert);
-          }}
-          onDelete={(id) => {
-            setSelectedConcertIdForDetail(null);
-            void handleDeleteConcert(id);
-          }}
-        />
-      )}
+
 
       {/* Live Stage Setlist View (Ver Setlist) */}
       {selectedConcertIdForSetlist && (

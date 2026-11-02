@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ConcertWithSetlist, SetlistItem } from "../types";
 import {
   addMusicsToSetlistAction,
   getConcertByIdAction,
+  removeSetlistItemAction,
   reorderSetlistAction,
 } from "../actions/concert-actions";
 import { AddToSetlistModal } from "./add-to-setlist-modal";
@@ -42,6 +43,10 @@ export function ConcertLiveSetlist({
   const [completedItemIds, setCompletedItemIds] = useState<Set<string>>(new Set());
   const [editingMusic, setEditingMusic] = useState<Music | null>(null);
   const [addingMusicId, setAddingMusicId] = useState<string | null>(null);
+  const [removingItemId, setRemovingItemId] = useState<string | null>(null);
+  const [lastSelectedItemId, setLastSelectedItemId] = useState<string | null>(null);
+  const [lastSelectedMusicId, setLastSelectedMusicId] = useState<string | null>(null);
+  const prevActivePresentationRef = useRef(activePresentation);
 
   const toggleCompleteItem = (itemId: string) => {
     setCompletedItemIds((prev) => {
@@ -72,6 +77,27 @@ export function ConcertLiveSetlist({
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // When presentation mode closes, scroll smoothly to the last selected/viewed song
+  useEffect(() => {
+    if (prevActivePresentationRef.current && !activePresentation) {
+      const targetId = lastSelectedItemId
+        ? `setlist-item-${lastSelectedItemId}`
+        : lastSelectedMusicId
+        ? `repertoire-music-${lastSelectedMusicId}`
+        : null;
+
+      if (targetId) {
+        requestAnimationFrame(() => {
+          const el = document.getElementById(targetId);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        });
+      }
+    }
+    prevActivePresentationRef.current = activePresentation;
+  }, [activePresentation, lastSelectedItemId, lastSelectedMusicId]);
 
   // Fetch concert data and customer's full repertoire in parallel
   useEffect(() => {
@@ -320,6 +346,40 @@ export function ConcertLiveSetlist({
     }
   };
 
+  const handleRemoveSetlistItem = async (itemId: string, musicTitle?: string) => {
+    const confirmMessage = musicTitle
+      ? `Deseja remover "${musicTitle}" da playlist deste show?`
+      : "Deseja remover esta música da playlist deste show?";
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    setRemovingItemId(itemId);
+    try {
+      // Optimistic update
+      if (concert) {
+        setConcert({
+          ...concert,
+          setlist: concert.setlist.filter((it) => it.id !== itemId),
+        });
+      }
+      const res = await removeSetlistItemAction(concertId, itemId);
+      if (res.success) {
+        const refreshed = await getConcertByIdAction(concertId);
+        if (refreshed.success && refreshed.data) {
+          setConcert(refreshed.data);
+        }
+      } else {
+        const refreshed = await getConcertByIdAction(concertId);
+        if (refreshed.success && refreshed.data) {
+          setConcert(refreshed.data);
+        }
+      }
+    } finally {
+      setRemovingItemId(null);
+    }
+  };
+
   if (isLoading || !concert) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/95 backdrop-blur-md">
@@ -334,13 +394,27 @@ export function ConcertLiveSetlist({
   const setlist = concert.setlist || [];
   const existingMusicIds = new Set(setlist.map((it) => it.musicId));
 
-  // -------------------------------------------------------------
-  // VIEW 1: STAGE PRESENTATION MODE (Lyrics & Chords Screen)
-  // -------------------------------------------------------------
-  if (activePresentation !== null) {
-    let presentationSetlist: SetlistItem[] = setlist;
-    let presentationIndex = 0;
+  // Helper to open presentation mode while recording the selected song
+  const openPresentation = (
+    index?: number,
+    customMusic?: Music,
+    mode: "lyrics" | "chords" = "lyrics"
+  ) => {
+    if (index !== undefined && setlist[index]) {
+      setLastSelectedItemId(setlist[index].id);
+      setLastSelectedMusicId(setlist[index].musicId);
+    } else if (customMusic) {
+      setLastSelectedItemId(`temp-${customMusic.id}`);
+      setLastSelectedMusicId(customMusic.id);
+    }
+    setActivePresentation({ index, customMusic, mode });
+  };
 
+  // Compute presentation setlist and index (rendered as overlay so setlist scroll position is preserved)
+  let presentationSetlist: SetlistItem[] = setlist;
+  let presentationIndex = 0;
+
+  if (activePresentation !== null) {
     if (activePresentation.customMusic) {
       const customMusic = activePresentation.customMusic;
       const foundIdx = setlist.findIndex((it) => it.musicId === customMusic.id);
@@ -362,27 +436,9 @@ export function ConcertLiveSetlist({
     } else if (activePresentation.index !== undefined) {
       presentationIndex = activePresentation.index;
     }
-
-    const currentMusicItem = presentationSetlist[presentationIndex];
-    if (currentMusicItem?.music) {
-      return (
-        <ConcertPresentationMode
-          setlist={presentationSetlist}
-          initialIndex={presentationIndex}
-          initialMode={activePresentation.mode}
-          concertTitle={concert.title}
-          existingMusicIds={existingMusicIds}
-          onAddToSetlist={async (musicId) => {
-            await handleQuickAddMusic(musicId);
-          }}
-          onClose={() => setActivePresentation(null)}
-          onComplete={(itemId) => {
-            setCompletedItemIds((prev) => new Set(prev).add(itemId));
-          }}
-        />
-      );
-    }
   }
+
+  const currentMusicItem = activePresentation ? presentationSetlist[presentationIndex] : null;
 
   // -------------------------------------------------------------
   // VIEW 2: SEARCH ACROSS FULL REPERTOIRE OR VIEW LIVE SETLIST
@@ -618,13 +674,21 @@ export function ConcertLiveSetlist({
                 const hasLyrics = Boolean(music.lyrics && music.lyrics.trim());
                 const hasChords = Boolean(music.chords && music.chords.trim());
                 const isAddingThis = addingMusicId === music.id;
+                const isLastSelected =
+                  (isInSetlist && setlistItem && lastSelectedItemId === setlistItem.id) ||
+                  lastSelectedMusicId === music.id;
 
                 return (
                   <div
                     key={music.id}
+                    id={isInSetlist && setlistItem ? `setlist-item-${setlistItem.id}` : `repertoire-music-${music.id}`}
                     className={`flex items-center justify-between py-2.5 px-3 sm:px-4 rounded-2xl border transition-all gap-2 group select-none ${
                       isCompleted
-                        ? "border-zinc-900 bg-zinc-950/60 opacity-40 hover:opacity-75 hover:border-zinc-800"
+                        ? isLastSelected
+                          ? "border-2 border-emerald-600/80 bg-emerald-950/20 opacity-70 hover:opacity-90 shadow-md"
+                          : "border-zinc-900 bg-zinc-950/60 opacity-40 hover:opacity-75 hover:border-zinc-800"
+                        : isLastSelected
+                        ? "border-2 border-amber-400 bg-amber-950/35 shadow-lg shadow-amber-500/15 ring-2 ring-amber-400/30 scale-[1.005]"
                         : isInSetlist
                         ? "border-emerald-900/60 bg-zinc-900/90 hover:bg-zinc-900 hover:border-emerald-700/80"
                         : "border-zinc-800/80 bg-zinc-900/60 hover:bg-zinc-900 hover:border-zinc-700/80"
@@ -660,23 +724,25 @@ export function ConcertLiveSetlist({
                                 toggleCompleteItem(setlistItem!.id);
                               } else {
                                 if (hasLyrics) {
-                                  setActivePresentation({
-                                    index: isInSetlist ? setlistIndex : undefined,
-                                    customMusic: isInSetlist ? undefined : music,
-                                    mode: "lyrics",
-                                  });
+                                  openPresentation(
+                                    isInSetlist ? setlistIndex : undefined,
+                                    isInSetlist ? undefined : music,
+                                    "lyrics"
+                                  );
                                 } else if (hasChords) {
-                                  setActivePresentation({
-                                    index: isInSetlist ? setlistIndex : undefined,
-                                    customMusic: isInSetlist ? undefined : music,
-                                    mode: "chords",
-                                  });
+                                  openPresentation(
+                                    isInSetlist ? setlistIndex : undefined,
+                                    isInSetlist ? undefined : music,
+                                    "chords"
+                                  );
                                 }
                               }
                             }}
                             className={`font-bold text-sm sm:text-base truncate tracking-tight transition-all cursor-pointer ${
                               isCompleted
                                 ? "line-through text-zinc-500 hover:text-zinc-300"
+                                : isLastSelected
+                                ? "text-amber-300 hover:text-amber-200"
                                 : hasLyrics || hasChords
                                 ? "text-zinc-100 hover:text-emerald-400"
                                 : "text-zinc-200"
@@ -700,6 +766,25 @@ export function ConcertLiveSetlist({
                               title="Música pronta no repertório"
                               className="inline-block h-2 w-2 rounded-full bg-emerald-500 shrink-0"
                             />
+                          )}
+
+                          {isLastSelected && !isCompleted && (
+                            <span
+                              className="rounded-md bg-amber-500/20 border border-amber-400/60 px-2 py-0.5 text-[10px] font-black text-amber-300 uppercase tracking-wider flex items-center gap-1 shrink-0 animate-pulse"
+                              title="Última música exibida no palco"
+                            >
+                              <span>👁</span>
+                              <span>Última Exibida</span>
+                            </span>
+                          )}
+                          {isLastSelected && isCompleted && (
+                            <span
+                              className="rounded-md bg-emerald-950/80 border border-emerald-500/60 px-2 py-0.5 text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1 shrink-0"
+                              title="Última música concluída no palco"
+                            >
+                              <span>✓</span>
+                              <span>Concluída</span>
+                            </span>
                           )}
                         </div>
 
@@ -758,11 +843,11 @@ export function ConcertLiveSetlist({
                         <button
                           type="button"
                           onClick={() =>
-                            setActivePresentation({
-                              index: isInSetlist ? setlistIndex : undefined,
-                              customMusic: isInSetlist ? undefined : music,
-                              mode: "lyrics",
-                            })
+                            openPresentation(
+                              isInSetlist ? setlistIndex : undefined,
+                              isInSetlist ? undefined : music,
+                              "lyrics"
+                            )
                           }
                           className="rounded-lg bg-emerald-500/15 border border-emerald-500/40 px-2.5 py-1 text-xs font-bold text-emerald-400 hover:bg-emerald-500 hover:text-zinc-950 transition-all active:scale-95 cursor-pointer shrink-0"
                           title="Ver letra no palco"
@@ -776,11 +861,11 @@ export function ConcertLiveSetlist({
                         <button
                           type="button"
                           onClick={() =>
-                            setActivePresentation({
-                              index: isInSetlist ? setlistIndex : undefined,
-                              customMusic: isInSetlist ? undefined : music,
-                              mode: "chords",
-                            })
+                            openPresentation(
+                              isInSetlist ? setlistIndex : undefined,
+                              isInSetlist ? undefined : music,
+                              "chords"
+                            )
                           }
                           className="rounded-lg bg-amber-500/15 border border-amber-500/40 px-2.5 py-1 text-xs font-bold text-amber-400 hover:bg-amber-500 hover:text-zinc-950 transition-all active:scale-95 cursor-pointer shrink-0 flex items-center gap-1"
                           title="Ver cifra no palco"
@@ -799,6 +884,27 @@ export function ConcertLiveSetlist({
                       >
                         <span>✏️</span>
                       </button>
+
+                      {/* Delete from Setlist Button if already in setlist */}
+                      {isInSetlist && setlistItem && (
+                        <button
+                          type="button"
+                          disabled={removingItemId === setlistItem.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleRemoveSetlistItem(setlistItem.id, music.title);
+                          }}
+                          className="rounded-lg bg-zinc-800/80 hover:bg-red-950/60 border border-zinc-700/60 hover:border-red-800/80 px-2 py-1 text-xs font-semibold text-zinc-400 hover:text-red-400 transition-all active:scale-95 cursor-pointer shrink-0 flex items-center gap-1 disabled:opacity-50"
+                          title="Remover esta música da playlist deste show"
+                          aria-label={`Remover ${music.title} da playlist deste show`}
+                        >
+                          {removingItemId === setlistItem.id ? (
+                            <span className="h-3 w-3 animate-spin rounded-full border border-red-400 border-t-transparent" />
+                          ) : (
+                            <span>🗑️</span>
+                          )}
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -843,9 +949,14 @@ export function ConcertLiveSetlist({
                 const isDragging = draggedIndex === index;
                 const isDragOver = dragOverIndex === index;
 
+                const isLastSelected =
+                  lastSelectedItemId === item.id ||
+                  (item.music && lastSelectedMusicId === item.music.id);
+
                 return (
                   <div
                     key={item.id}
+                    id={`setlist-item-${item.id}`}
                     data-setlist-index={index}
                     draggable={true}
                     onDragStart={(e) => handleDragStart(e, index)}
@@ -858,7 +969,11 @@ export function ConcertLiveSetlist({
                         : isDragOver
                         ? "border-2 border-emerald-500/80 bg-emerald-950/30 scale-[1.01]"
                         : isCompleted
-                        ? "border-zinc-900 bg-zinc-950/60 opacity-40 hover:opacity-75 hover:border-zinc-800"
+                        ? isLastSelected
+                          ? "border-2 border-emerald-600/80 bg-emerald-950/20 opacity-70 hover:opacity-90 shadow-md"
+                          : "border-zinc-900 bg-zinc-950/60 opacity-40 hover:opacity-75 hover:border-zinc-800"
+                        : isLastSelected
+                        ? "border-2 border-amber-400 bg-amber-950/35 shadow-lg shadow-amber-500/15 ring-2 ring-amber-400/30 scale-[1.005]"
                         : "border-zinc-800/80 bg-zinc-900/70 hover:bg-zinc-900 hover:border-zinc-700/80"
                     }`}
                   >
@@ -882,7 +997,11 @@ export function ConcertLiveSetlist({
                       {/* Order number */}
                       <span
                         className={`font-extrabold text-xs sm:text-sm shrink-0 w-6 text-center ${
-                          isCompleted ? "text-zinc-600" : "text-zinc-400"
+                          isCompleted
+                            ? "text-zinc-600"
+                            : isLastSelected
+                            ? "text-amber-400 font-black"
+                            : "text-zinc-400"
                         }`}
                       >
                         #{index + 1}
@@ -895,21 +1014,17 @@ export function ConcertLiveSetlist({
                             toggleCompleteItem(item.id);
                           } else {
                             if (hasLyrics) {
-                              setActivePresentation({
-                                index,
-                                mode: "lyrics",
-                              });
+                              openPresentation(index, undefined, "lyrics");
                             } else if (hasChords) {
-                              setActivePresentation({
-                                index,
-                                mode: "chords",
-                              });
+                              openPresentation(index, undefined, "chords");
                             }
                           }
                         }}
                         className={`font-bold text-base sm:text-lg truncate tracking-tight transition-all ${
                           isCompleted
                             ? "line-through text-zinc-500 hover:text-zinc-300 cursor-pointer"
+                            : isLastSelected
+                            ? "text-amber-300 hover:text-amber-200 cursor-pointer"
                             : hasLyrics || hasChords
                             ? "text-zinc-100 cursor-pointer hover:text-emerald-400"
                             : "text-zinc-100 cursor-default"
@@ -934,6 +1049,25 @@ export function ConcertLiveSetlist({
                           title="Música pronta no repertório"
                           className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500 shrink-0"
                         />
+                      )}
+
+                      {isLastSelected && !isCompleted && (
+                        <span
+                          className="rounded-md bg-amber-500/20 border border-amber-400/60 px-2 py-0.5 text-[10px] font-black text-amber-300 uppercase tracking-wider flex items-center gap-1 shrink-0 animate-pulse"
+                          title="Última música exibida no palco"
+                        >
+                          <span>👁</span>
+                          <span>Última Exibida</span>
+                        </span>
+                      )}
+                      {isLastSelected && isCompleted && (
+                        <span
+                          className="rounded-md bg-emerald-950/80 border border-emerald-500/60 px-2 py-0.5 text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1 shrink-0"
+                          title="Última música concluída no palco"
+                        >
+                          <span>✓</span>
+                          <span>Concluída</span>
+                        </span>
                       )}
                     </div>
 
@@ -964,9 +1098,7 @@ export function ConcertLiveSetlist({
                       {hasLyrics ? (
                         <button
                           type="button"
-                          onClick={() =>
-                            setActivePresentation({ index, mode: "lyrics" })
-                          }
+                          onClick={() => openPresentation(index, undefined, "lyrics")}
                           className="rounded-lg bg-emerald-500/15 border border-emerald-500/40 px-2.5 py-1 text-xs font-bold text-emerald-400 hover:bg-emerald-500 hover:text-zinc-950 transition-all active:scale-95 cursor-pointer shrink-0"
                           title="Ver letra desta música no palco"
                         >
@@ -982,9 +1114,7 @@ export function ConcertLiveSetlist({
                       {hasChords ? (
                         <button
                           type="button"
-                          onClick={() =>
-                            setActivePresentation({ index, mode: "chords" })
-                          }
+                          onClick={() => openPresentation(index, undefined, "chords")}
                           className="rounded-lg bg-amber-500/15 border border-amber-500/40 px-2.5 py-1 text-xs font-bold text-amber-400 hover:bg-amber-500 hover:text-zinc-950 transition-all active:scale-95 cursor-pointer shrink-0 flex items-center gap-1"
                           title="Ver cifra desta música no palco"
                         >
@@ -1006,6 +1136,26 @@ export function ConcertLiveSetlist({
                       >
                         <span>✏️</span>
                         <span className="hidden xs:inline">Editar</span>
+                      </button>
+
+                      {/* Delete from this specific setlist button */}
+                      <button
+                        type="button"
+                        disabled={removingItemId === item.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleRemoveSetlistItem(item.id, music.title);
+                        }}
+                        className="rounded-lg bg-zinc-800/80 hover:bg-red-950/60 border border-zinc-700/60 hover:border-red-800/80 px-2 py-1 text-xs font-semibold text-zinc-400 hover:text-red-400 transition-all active:scale-95 cursor-pointer shrink-0 flex items-center gap-1 disabled:opacity-50"
+                        title="Remover esta música da playlist deste show"
+                        aria-label={`Remover ${music.title} da playlist deste show`}
+                      >
+                        {removingItemId === item.id ? (
+                          <span className="h-3 w-3 animate-spin rounded-full border border-red-400 border-t-transparent" />
+                        ) : (
+                          <span>🗑️</span>
+                        )}
+                        <span className="hidden sm:inline text-red-400/90">Excluir</span>
                       </button>
                     </div>
                   </div>
@@ -1059,6 +1209,38 @@ export function ConcertLiveSetlist({
           return res;
         }}
       />
+
+      {/* Fullscreen Stage Presentation Mode Overlay (Preserves setlist scroll position) */}
+      {activePresentation !== null && currentMusicItem?.music && (
+        <ConcertPresentationMode
+          setlist={presentationSetlist}
+          initialIndex={presentationIndex}
+          initialMode={activePresentation.mode}
+          concertTitle={concert.title}
+          existingMusicIds={existingMusicIds}
+          onAddToSetlist={async (musicId) => {
+            await handleQuickAddMusic(musicId);
+          }}
+          onRemoveFromSetlist={async (itemId) => {
+            await removeSetlistItemAction(concertId, itemId);
+            const refreshed = await getConcertByIdAction(concertId);
+            if (refreshed.success && refreshed.data) {
+              setConcert(refreshed.data);
+            }
+          }}
+          onClose={(lastIndex) => {
+            if (lastIndex !== undefined && presentationSetlist[lastIndex]) {
+              const item = presentationSetlist[lastIndex];
+              setLastSelectedItemId(item.id);
+              setLastSelectedMusicId(item.musicId);
+            }
+            setActivePresentation(null);
+          }}
+          onComplete={(itemId) => {
+            setCompletedItemIds((prev) => new Set(prev).add(itemId));
+          }}
+        />
+      )}
     </div>
   );
 }

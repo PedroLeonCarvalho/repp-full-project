@@ -17,9 +17,7 @@ export const concerts = pgTable("concerts", {
   }),
   title: text("title").notNull(),
   location: text("location"),
-  presentationDate: timestamp("presentation_date", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
+  presentationDate: timestamp("presentation_date", { withTimezone: true }),
   startTime: text("start_time"),
   finishTime: text("finish_time"),
   durationInHours: numeric("duration_in_hours", { precision: 4, scale: 1 }),

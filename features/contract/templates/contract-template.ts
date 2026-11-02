@@ -35,7 +35,7 @@ export function generateStandardContractText(data: ContractTemplateData): string
     additionalClauses,
   } = data;
 
-  const formattedDate = formatConcertDate(concert.presentationDate);
+  const formattedDate = formatConcertDate(concert.presentationDate) || "Data a definir";
 
   const artistName = artist.fullName;
   const stageName = artist.stageName || artist.fullName;

@@ -6,10 +6,16 @@ import type { ConcertWithSetlist } from "@/features/concert/types";
 import { formatConcertDate } from "@/lib/date-utils";
 
 function getConcertTimestamp(concert: {
-  presentationDate: Date | string;
+  presentationDate?: Date | string | null;
   startTime?: string | null;
 }): number {
+  if (!concert.presentationDate) {
+    return 0;
+  }
   const dateObj = new Date(concert.presentationDate);
+  if (isNaN(dateObj.getTime())) {
+    return 0;
+  }
   let year = dateObj.getUTCFullYear();
   let month = dateObj.getUTCMonth();
   let day = dateObj.getUTCDate();
@@ -39,14 +45,20 @@ function getConcertTimestamp(concert: {
 
 function isConcertPassed(
   concert: {
-    presentationDate: Date | string;
+    presentationDate?: Date | string | null;
     startTime?: string | null;
     finishTime?: string | null;
     durationInHours?: number | string | null;
   },
   nowTimestamp: number
 ): boolean {
+  if (!concert.presentationDate) {
+    return false;
+  }
   const dateObj = new Date(concert.presentationDate);
+  if (isNaN(dateObj.getTime())) {
+    return false;
+  }
   let year = dateObj.getUTCFullYear();
   let month = dateObj.getUTCMonth();
   let day = dateObj.getUTCDate();
@@ -83,6 +95,16 @@ function isConcertPassed(
   return concertEnd.getTime() < nowTimestamp;
 }
 
+function compareConcerts(a: ConcertWithSetlist, b: ConcertWithSetlist): number {
+  if (!a.presentationDate && !b.presentationDate) {
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  }
+  if (!a.presentationDate) return -1;
+  if (!b.presentationDate) return 1;
+
+  return getConcertTimestamp(b) - getConcertTimestamp(a);
+}
+
 function getProjectClosestConcertDistance(
   concerts: ConcertWithSetlist[] | undefined,
   nowTimestamp: number
@@ -95,14 +117,16 @@ function getProjectClosestConcertDistance(
   let hasUpcoming = false;
 
   for (const concert of concerts) {
-    const ts = getConcertTimestamp(concert);
     const passed = isConcertPassed(concert, nowTimestamp);
     if (!passed) {
       hasUpcoming = true;
     }
-    const dist = Math.abs(ts - nowTimestamp);
-    if (dist < minDistance) {
-      minDistance = dist;
+    if (concert.presentationDate) {
+      const ts = getConcertTimestamp(concert);
+      const dist = Math.abs(ts - nowTimestamp);
+      if (dist < minDistance) {
+        minDistance = dist;
+      }
     }
   }
 
@@ -121,7 +145,6 @@ interface ProjectListProps {
   onOpenCreateProject: () => void;
   onOpenCreateConcert: (projectId: string, projectName: string) => void;
   onOpenEditConcert: (concert: ConcertWithSetlist) => void;
-  onOpenConcertDetail: (concertId: string) => void;
   onOpenConcertSetlist: (concertId: string) => void;
   onShareConcert?: (concert: ConcertWithSetlist) => void;
   onDuplicateConcert: (concertId: string) => void;
@@ -140,7 +163,6 @@ export function ProjectList({
   onOpenCreateProject,
   onOpenCreateConcert,
   onOpenEditConcert,
-  onOpenConcertDetail,
   onOpenConcertSetlist,
   onShareConcert,
   onDuplicateConcert,
@@ -366,10 +388,11 @@ export function ProjectList({
                   ) : (
                     <div className="flex flex-col gap-2.5">
                       {[...concerts]
-                        .sort((a, b) => getConcertTimestamp(b) - getConcertTimestamp(a))
+                        .sort(compareConcerts)
                         .map((concert) => {
                           const isPassed = isConcertPassed(concert, now);
-                          const dateStr = formatConcertDate(concert.presentationDate);
+                          const formattedDate = formatConcertDate(concert.presentationDate);
+                          const dateStr = formattedDate || "Data a definir";
 
                           return (
                             <div
@@ -405,7 +428,9 @@ export function ProjectList({
                                   className={`flex items-center gap-2 mt-0.5 text-xs ${
                                     isPassed
                                       ? "line-through text-zinc-600"
-                                      : "text-zinc-400"
+                                      : concert.presentationDate
+                                      ? "text-zinc-400"
+                                      : "text-amber-400/90 font-medium"
                                   }`}
                                 >
                                   <span>📅 {dateStr}</span>
@@ -420,16 +445,6 @@ export function ProjectList({
 
                             {/* Concert Action Buttons */}
                             <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center flex-wrap">
-                              <button
-                                type="button"
-                                onClick={() => onOpenConcertDetail(concert.id)}
-                                className="rounded-lg bg-zinc-800 border border-zinc-700/70 px-2.5 py-1 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-700 transition-colors cursor-pointer inline-flex items-center gap-1"
-                                title="Ver dados da apresentação (endereço, cachê, etc.)"
-                              >
-                                <span>📋</span>
-                                <span>Ver Dados</span>
-                              </button>
-
                               <button
                                 type="button"
                                 onClick={() => onOpenConcertSetlist(concert.id)}
@@ -464,10 +479,11 @@ export function ProjectList({
                               <button
                                 type="button"
                                 onClick={() => onOpenEditConcert(concert)}
-                                className="rounded-lg bg-zinc-800 px-2.5 py-1 text-xs font-medium text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700 transition-colors cursor-pointer"
-                                title="Editar dados da apresentação"
+                                className="rounded-lg bg-zinc-800 border border-zinc-700/70 px-2.5 py-1 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-700 transition-colors cursor-pointer inline-flex items-center gap-1"
+                                title="Editar dados da apresentação (data, local, cachê, músicos)"
                               >
-                                ✏️
+                                <span>✏️</span>
+                                <span>Editar</span>
                               </button>
 
                               <button

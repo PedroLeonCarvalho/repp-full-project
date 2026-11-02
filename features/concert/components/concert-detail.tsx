@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import type { ConcertWithSetlist } from "../types";
 import {
   addMusicsToSetlistAction,
@@ -45,6 +45,8 @@ export function ConcertDetail({
     index: number;
     mode: "lyrics" | "chords";
   } | null>(null);
+  const [lastSelectedItemId, setLastSelectedItemId] = useState<string | null>(null);
+  const prevPresentationStateRef = useRef(presentationState);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -84,6 +86,18 @@ export function ConcertDetail({
     };
   }, [concertId]);
 
+  // When presentation mode closes, scroll smoothly to the last selected/viewed song
+  useEffect(() => {
+    if (prevPresentationStateRef.current && !presentationState && lastSelectedItemId) {
+      requestAnimationFrame(() => {
+        const el = document.getElementById(`detail-setlist-item-${lastSelectedItemId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      });
+    }
+    prevPresentationStateRef.current = presentationState;
+  }, [presentationState, lastSelectedItemId]);
 
   const handleAddMusics = async (musicIds: string[]) => {
     await addMusicsToSetlistAction(concertId, musicIds);
@@ -172,18 +186,7 @@ export function ConcertDetail({
     );
   }
 
-  // Live Presentation Mode Full Screen
-  if (presentationState !== null) {
-    return (
-      <ConcertPresentationMode
-        setlist={concert.setlist}
-        initialIndex={presentationState.index}
-        initialMode={presentationState.mode}
-        concertTitle={concert.title}
-        onClose={() => setPresentationState(null)}
-      />
-    );
-  }
+
 
   const existingMusicIds = new Set(concert.setlist.map((s) => s.musicId));
 
@@ -259,7 +262,7 @@ export function ConcertDetail({
             {/* Line 2: Presentation Hour, Date, agreedFee */}
             <div className="flex items-center gap-2 text-xs text-zinc-300 flex-wrap">
               <span className="inline-flex items-center gap-1 font-medium text-zinc-200">
-                <span>📅</span> {formattedDate}
+                <span>📅</span> {formattedDate || "Data a definir"}
               </span>
               {(concert.startTime || concert.finishTime) && (
                 <>
@@ -337,6 +340,9 @@ export function ConcertDetail({
                     if (onOpenLiveSetlist) {
                       onOpenLiveSetlist();
                     } else {
+                      if (concert.setlist.length > 0) {
+                        setLastSelectedItemId(concert.setlist[0].id);
+                      }
                       setPresentationState({ index: 0, mode: "lyrics" });
                     }
                   }}
@@ -372,10 +378,12 @@ export function ConcertDetail({
                 const noteText = music.note || item.note;
                 const isDragging = draggedIndex === index;
                 const isDragOver = dragOverIndex === index;
+                const isLastSelected = lastSelectedItemId === item.id;
 
                 return (
                   <div
                     key={item.id}
+                    id={`detail-setlist-item-${item.id}`}
                     draggable
                     onDragStart={(e) => handleDragStart(e, index)}
                     onDragOver={(e) => handleDragOver(e, index)}
@@ -386,6 +394,8 @@ export function ConcertDetail({
                         ? "opacity-30 border-2 border-dashed border-emerald-500 bg-zinc-950/60"
                         : isDragOver
                         ? "border-2 border-emerald-500/80 bg-emerald-950/20 scale-[1.01]"
+                        : isLastSelected
+                        ? "border-2 border-amber-400 bg-amber-950/35 shadow-lg shadow-amber-500/15 ring-2 ring-amber-400/30 scale-[1.005]"
                         : "hover:bg-zinc-800/40"
                     }`}
                   >
@@ -398,17 +408,32 @@ export function ConcertDetail({
                         ⠿
                       </div>
 
-                      <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-zinc-800 text-[11px] font-bold text-zinc-400 shrink-0">
+                      <span
+                        className={`flex h-6 w-6 items-center justify-center rounded-lg text-[11px] font-bold shrink-0 ${
+                          isLastSelected
+                            ? "bg-amber-500 text-zinc-950 font-black shadow-sm"
+                            : "bg-zinc-800 text-zinc-400"
+                        }`}
+                      >
                         {index + 1}
                       </span>
 
                       <div
-                        onClick={() => setPresentationState({ index, mode: "lyrics" })}
+                        onClick={() => {
+                          setLastSelectedItemId(item.id);
+                          setPresentationState({ index, mode: "lyrics" });
+                        }}
                         className="min-w-0 flex-1 cursor-pointer"
                         title={`Clique para abrir letra: ${music.title}`}
                       >
                         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                          <span className="font-semibold text-xs sm:text-sm text-zinc-100 hover:text-emerald-400 transition-colors truncate">
+                          <span
+                            className={`font-semibold text-xs sm:text-sm transition-colors truncate ${
+                              isLastSelected
+                                ? "text-amber-300 hover:text-amber-200"
+                                : "text-zinc-100 hover:text-emerald-400"
+                            }`}
+                          >
                             {music.title}
                           </span>
                           {/* Study Status Bullet */}
@@ -422,6 +447,15 @@ export function ConcertDetail({
                               title="Música pronta no repertório"
                               className="inline-block h-2 w-2 rounded-full bg-emerald-500 shrink-0"
                             />
+                          )}
+                          {isLastSelected && (
+                            <span
+                              className="rounded-md bg-amber-500/20 border border-amber-400/60 px-2 py-0.5 text-[10px] font-black text-amber-300 uppercase tracking-wider flex items-center gap-1 shrink-0 animate-pulse"
+                              title="Última música exibida no palco"
+                            >
+                              <span>👁</span>
+                              <span>Última Exibida</span>
+                            </span>
                           )}
                           {keyDisplay && (
                             <span className="rounded bg-emerald-950/80 border border-emerald-800/80 px-1.5 py-0.5 text-[10px] font-mono font-bold text-emerald-400 shrink-0">
@@ -480,6 +514,7 @@ export function ConcertDetail({
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setActiveMenuId(null);
+                                setLastSelectedItemId(item.id);
                                 setPresentationState({ index, mode: "lyrics" });
                               }}
                               className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-emerald-400 hover:bg-zinc-700/70 rounded-xl transition-colors text-left cursor-pointer"
@@ -493,6 +528,7 @@ export function ConcertDetail({
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setActiveMenuId(null);
+                                setLastSelectedItemId(item.id);
                                 setPresentationState({ index, mode: "chords" });
                               }}
                               className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-amber-400 hover:bg-zinc-700/70 rounded-xl transition-colors text-left cursor-pointer"
@@ -654,6 +690,25 @@ export function ConcertDetail({
           return res;
         }}
       />
+
+      {/* Fullscreen Stage Presentation Mode Overlay (Preserves scroll position) */}
+      {presentationState !== null && (
+        <ConcertPresentationMode
+          setlist={concert.setlist}
+          initialIndex={presentationState.index}
+          initialMode={presentationState.mode}
+          concertTitle={concert.title}
+          onRemoveFromSetlist={async (itemId) => {
+            await handleRemoveItem(itemId);
+          }}
+          onClose={(lastIndex) => {
+            if (lastIndex !== undefined && concert.setlist[lastIndex]) {
+              setLastSelectedItemId(concert.setlist[lastIndex].id);
+            }
+            setPresentationState(null);
+          }}
+        />
+      )}
     </div>
   );
 }

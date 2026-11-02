@@ -186,7 +186,7 @@ function SelectConcertModalContent({
           ) : (
             filteredConcerts.map((concert) => {
               const isSubmitting = submittingConcertId === concert.id;
-              const dateStr = formatConcertDate(concert.presentationDate);
+              const dateStr = formatConcertDate(concert.presentationDate) || "Data a definir";
 
               return (
                 <div

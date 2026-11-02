@@ -70,10 +70,11 @@ export async function createConcert(
     );
   }
 
-  const presentationDate =
-    typeof validated.presentationDate === "string"
+  const presentationDate = validated.presentationDate
+    ? typeof validated.presentationDate === "string"
       ? new Date(validated.presentationDate)
-      : validated.presentationDate;
+      : validated.presentationDate
+    : null;
 
   const [created] = await db
     .insert(concerts)
@@ -165,10 +166,11 @@ export async function updateConcert(
   if (validated.title !== undefined) updateData.title = validated.title;
   if (validated.location !== undefined) updateData.location = validated.location || null;
   if (validated.presentationDate !== undefined) {
-    updateData.presentationDate =
-      typeof validated.presentationDate === "string"
+    updateData.presentationDate = validated.presentationDate
+      ? typeof validated.presentationDate === "string"
         ? new Date(validated.presentationDate)
-        : validated.presentationDate;
+        : validated.presentationDate
+      : null;
   }
   if (validated.startTime !== undefined) updateData.startTime = validated.startTime || null;
   if (validated.finishTime !== undefined) updateData.finishTime = validated.finishTime || null;

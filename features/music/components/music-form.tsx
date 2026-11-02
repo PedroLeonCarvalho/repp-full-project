@@ -12,7 +12,11 @@ import type {
   UpdateMusicInput,
 } from "../types";
 import { GENRE_LABELS } from "./music-filters";
-import { searchLyricsAction, searchChordsAction } from "../actions/music-actions";
+import {
+  searchLyricsAction,
+  searchChordsAction,
+  uploadSheetMusicAction,
+} from "../actions/music-actions";
 import { ChordSearchCombobox } from "./chord-search-combobox";
 
 interface MusicFormProps {
@@ -114,6 +118,48 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
   const [sheetMusicFile, setSheetMusicFile] = useState(
     initialData?.sheetMusicFile || ""
   );
+  const [sheetMusicFileName, setSheetMusicFileName] = useState<string>("");
+  const [isUploadingPdf, setIsUploadingPdf] = useState(false);
+  const [uploadPdfError, setUploadPdfError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf") {
+      setUploadPdfError("Selecione um arquivo no formato PDF.");
+      return;
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+      setUploadPdfError("O arquivo PDF excede o tamanho limite de 15MB.");
+      return;
+    }
+
+    setIsUploadingPdf(true);
+    setUploadPdfError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const result = await uploadSheetMusicAction(formData);
+      if (result.success) {
+        setSheetMusicFile(result.data.url);
+        setSheetMusicFileName(result.data.fileName);
+      } else {
+        setUploadPdfError(result.error);
+      }
+    } catch {
+      setUploadPdfError("Erro ao fazer upload do arquivo PDF. Tente novamente.");
+    } finally {
+      setIsUploadingPdf(false);
+      if (e.target) {
+        e.target.value = "";
+      }
+    }
+  };
 
   // Decoupled chord search state
   const [isSearchingChords, setIsSearchingChords] = useState(false);
@@ -696,7 +742,6 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
                 <ChordSearchCombobox
                   onSelectSuggestion={handleSelectChordSuggestion}
                   isLoadingChords={isSearchingChords}
-                  initialQuery={title && artist ? `${title} — ${artist}` : title || ""}
                   placeholder="Buscar cifra por título ou artista (autocomplete)..."
                 />
                 <p className="text-[11px] text-zinc-500">
@@ -896,18 +941,96 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
               />
             </div>
 
-            {/* ─── Sheet Music ─── */}
+            {/* ─── Sheet Music (PDF Upload) ─── */}
             <div>
-              <label className="block text-xs font-medium text-zinc-300 mb-1">
-                Partitura / Arquivo de Cifra (Link ou Nome)
+              <label className="block text-xs font-medium text-zinc-300 mb-1.5">
+                Partitura / Cifra (Anexo PDF)
               </label>
+
+              {/* Hidden file input */}
               <input
-                type="text"
-                value={sheetMusicFile}
-                onChange={(e) => setSheetMusicFile(e.target.value)}
-                placeholder="Ex: partituras/como-nossos-pais.pdf"
-                className="w-full rounded-xl bg-zinc-800/80 px-3.5 py-2.5 text-sm text-zinc-100 border border-zinc-700/60 focus:border-emerald-500 focus:outline-none"
+                type="file"
+                ref={fileInputRef}
+                accept="application/pdf,.pdf"
+                onChange={handlePdfUpload}
+                className="hidden"
+                disabled={isUploadingPdf}
               />
+
+              {sheetMusicFile ? (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-zinc-800/80 border border-emerald-500/40 shadow-sm">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-2xl shrink-0">📄</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-zinc-100 truncate">
+                        {sheetMusicFileName || (sheetMusicFile.startsWith("/uploads/") ? sheetMusicFile.split("/").pop() : sheetMusicFile)}
+                      </p>
+                      <a
+                        href={sheetMusicFile}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-emerald-400 hover:text-emerald-300 underline inline-flex items-center gap-1 font-medium mt-0.5"
+                      >
+                        Visualizar PDF ↗
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploadingPdf}
+                      className="px-3 py-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-xs font-semibold text-zinc-200 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {isUploadingPdf ? "Enviando..." : "Trocar PDF"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSheetMusicFile("");
+                        setSheetMusicFileName("");
+                        setUploadPdfError(null);
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                      }}
+                      disabled={isUploadingPdf}
+                      className="px-3 py-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800/60 text-xs font-semibold text-rose-300 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      Remover
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center p-4 rounded-xl border border-dashed border-zinc-700 bg-zinc-800/40 hover:bg-zinc-800/70 hover:border-zinc-500 transition-all text-center">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingPdf}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-xs sm:text-sm font-semibold text-white shadow-md transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isUploadingPdf ? (
+                      <>
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        <span>Enviando PDF...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>📤</span>
+                        <span>Fazer Upload de Partitura (PDF)</span>
+                      </>
+                    )}
+                  </button>
+                  <p className="mt-2 text-xs text-zinc-400">
+                    Apenas arquivos em formato PDF (tamanho máx. 15MB)
+                  </p>
+                </div>
+              )}
+
+              {uploadPdfError && (
+                <p className="mt-1.5 text-xs text-rose-400 font-medium">
+                  {uploadPdfError}
+                </p>
+              )}
             </div>
 
             {/* ─── Spotify ─── */}

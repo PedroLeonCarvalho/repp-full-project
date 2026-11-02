@@ -154,9 +154,16 @@ export function MusicDetail({
             </span>
 
             {music.sheetMusicFile && (
-              <span className="inline-flex items-center gap-1 rounded-lg bg-zinc-800 border border-zinc-700 px-2.5 py-1 text-xs text-zinc-300">
-                📄 Partitura: {music.sheetMusicFile}
-              </span>
+              <a
+                href={music.sheetMusicFile}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-emerald-500/50 px-2.5 py-1 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer"
+                title="Abrir partitura/cifra em PDF em uma nova aba"
+              >
+                <span>📄</span>
+                <span>Partitura (PDF) ↗</span>
+              </a>
             )}
           </div>
 

@@ -33,13 +33,9 @@ const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   CANCELLED: "Cancelado",
 };
 
-function formatDateForInput(date: Date | string | undefined): string {
+function formatDateForInput(date: Date | string | undefined | null): string {
   if (!date) {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, "0");
-    const day = String(today.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
+    return "";
   }
   if (typeof date === "string") {
     return date.split("T")[0];
@@ -240,7 +236,7 @@ function ConcertFormModal({
         contractorId: contractorId || null,
         title: title.trim(),
         location: location.trim() || null,
-        presentationDate: new Date(presentationDate),
+        presentationDate: presentationDate.trim() ? new Date(presentationDate) : null,
         startTime: startTime.trim() || null,
         finishTime: finishTime.trim() || null,
         durationInHours: durationInHours ? parseFloat(durationInHours) : null,
@@ -385,12 +381,22 @@ function ConcertFormModal({
           {/* Date and Times Row */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-medium text-zinc-300 mb-1.5">
-                Data do Show <span className="text-emerald-400">*</span>
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-medium text-zinc-300">
+                  Data do Show
+                </label>
+                {presentationDate && (
+                  <button
+                    type="button"
+                    onClick={() => setPresentationDate("")}
+                    className="text-[10px] text-zinc-400 hover:text-zinc-200 underline cursor-pointer"
+                  >
+                    Limpar
+                  </button>
+                )}
+              </div>
               <input
                 type="date"
-                required
                 value={presentationDate}
                 onChange={(e) => setPresentationDate(e.target.value)}
                 className="w-full rounded-xl bg-zinc-800/80 px-3 py-2 text-sm text-zinc-100 border border-zinc-700/60 focus:border-emerald-500 focus:outline-none transition-all"

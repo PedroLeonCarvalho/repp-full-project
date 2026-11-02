@@ -12,6 +12,11 @@ import {
 } from "../services/music-service";
 import { lyricsService } from "../services/lyrics-service";
 import { chordsService } from "../services/chords-service";
+import {
+  uploadSheetMusicFile,
+  deleteSheetMusicFile,
+  SheetMusicUploadError,
+} from "../services/sheet-music-upload-service";
 import type {
   ChordSearchResult,
   CreateMusicInput,
@@ -154,4 +159,41 @@ export async function searchChordsAction(
   }
 }
 
+export async function uploadSheetMusicAction(
+  formData: FormData
+): Promise<ActionResult<{ url: string; fileName: string; size: number }>> {
+  try {
+    const customerId = await requireAuthCustomerId();
+    const file = formData.get("file");
 
+    if (!file || !(file instanceof File)) {
+      return { success: false, error: "Nenhum arquivo válido foi selecionado." };
+    }
+
+    const result = await uploadSheetMusicFile(file, customerId);
+    return { success: true, data: result };
+  } catch (err) {
+    if (err instanceof SheetMusicUploadError) {
+      return { success: false, error: err.message };
+    }
+    if (err instanceof Error) {
+      return { success: false, error: err.message };
+    }
+    return { success: false, error: "Erro inesperado ao fazer upload do arquivo." };
+  }
+}
+
+export async function deleteSheetMusicAction(
+  fileUrl: string
+): Promise<ActionResult<{ deleted: boolean }>> {
+  try {
+    const customerId = await requireAuthCustomerId();
+    const deleted = await deleteSheetMusicFile(fileUrl, customerId);
+    return { success: true, data: { deleted } };
+  } catch (err) {
+    if (err instanceof Error) {
+      return { success: false, error: err.message };
+    }
+    return { success: false, error: "Erro inesperado ao remover o arquivo." };
+  }
+}

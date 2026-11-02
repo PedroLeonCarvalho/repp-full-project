@@ -11,7 +11,7 @@ export interface Concert {
   contractorId: string | null;
   title: string;
   location: string | null;
-  presentationDate: Date;
+  presentationDate: Date | null;
   startTime: string | null;
   finishTime: string | null;
   durationInHours: number | null;
@@ -62,7 +62,7 @@ export interface PublicSharedConcert {
   title: string;
   projectName: string;
   location: string | null;
-  presentationDate: Date | string;
+  presentationDate: Date | string | null;
   startTime: string | null;
   finishTime: string | null;
   durationInHours: number | null;
@@ -90,7 +90,7 @@ export interface CreateConcertInput {
   contractorId?: string | null;
   title: string;
   location?: string | null;
-  presentationDate: string | Date;
+  presentationDate?: string | Date | null;
   startTime?: string | null;
   finishTime?: string | null;
   durationInHours?: number | null;
@@ -106,7 +106,7 @@ export interface UpdateConcertInput {
   contractorId?: string | null;
   title?: string;
   location?: string | null;
-  presentationDate?: string | Date;
+  presentationDate?: string | Date | null;
   startTime?: string | null;
   finishTime?: string | null;
   durationInHours?: number | null;

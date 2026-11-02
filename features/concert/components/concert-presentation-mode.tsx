@@ -12,10 +12,11 @@ interface ConcertPresentationModeProps {
   setlist: SetlistItem[];
   initialIndex?: number;
   initialMode?: "lyrics" | "chords";
-  concertTitle: string;
-  onClose: () => void;
+  concertTitle?: string;
+  onClose: (lastIndex?: number) => void;
   onComplete?: (itemId: string) => void;
   onAddToSetlist?: (musicId: string) => Promise<void>;
+  onRemoveFromSetlist?: (itemId: string) => Promise<void>;
   existingMusicIds?: Set<string>;
 }
 
@@ -37,6 +38,7 @@ export function ConcertPresentationMode({
   onClose,
   onComplete,
   onAddToSetlist,
+  onRemoveFromSetlist,
   existingMusicIds,
 }: ConcertPresentationModeProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
@@ -45,6 +47,7 @@ export function ConcertPresentationMode({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [editingMusic, setEditingMusic] = useState<Music | null>(null);
   const [isAddingToSetlist, setIsAddingToSetlist] = useState(false);
+  const [isRemovingFromSetlist, setIsRemovingFromSetlist] = useState(false);
   const [addedMusicIds, setAddedMusicIds] = useState<Set<string>>(new Set());
   const [lyricsFontSize, setLyricsFontSize] = useState<LyricsFontSize>(() => {
     if (typeof window !== "undefined") {
@@ -205,7 +208,7 @@ export function ConcertPresentationMode({
           setCurrentIndex((prev) => prev - 1);
         }
       } else if (e.key === "Escape") {
-        onClose();
+        onClose(currentIndex);
       }
     };
 
@@ -225,6 +228,20 @@ export function ConcertPresentationMode({
     <div className="fixed inset-0 z-50 flex flex-col bg-black text-zinc-50 overflow-hidden select-none">
       {/* Floating Controls at Top Right */}
       <div className="fixed top-3 right-3 z-30 flex items-center gap-2 flex-wrap justify-end">
+        {/* PDF Sheet Music Link if available */}
+        {music.sheetMusicFile && (
+          <a
+            href={music.sheetMusicFile}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 rounded-full bg-zinc-900/90 border border-zinc-700/70 px-3 py-1 text-xs font-bold text-emerald-400 hover:text-emerald-300 hover:bg-zinc-800 transition-colors shadow-lg cursor-pointer"
+            title="Abrir partitura/cifra em PDF em uma nova aba"
+          >
+            <span>📄</span>
+            <span className="hidden sm:inline">PDF</span>
+          </a>
+        )}
+
         {/* View Mode Switcher: Letra / Cifra */}
         <div className="flex items-center rounded-full bg-zinc-900/90 border border-zinc-700/70 p-0.5 backdrop-blur-md shadow-lg">
           <button
@@ -328,7 +345,7 @@ export function ConcertPresentationMode({
         {/* Close Button */}
         <button
           type="button"
-          onClick={onClose}
+          onClick={() => onClose(currentIndex)}
           className="flex items-center gap-1.5 rounded-full bg-zinc-900/80 hover:bg-zinc-800/90 border border-zinc-700/60 px-3.5 py-1.5 text-xs font-bold text-zinc-200 hover:text-white backdrop-blur-md shadow-lg transition-all cursor-pointer"
           title="Fechar e voltar (Esc)"
         >
@@ -389,6 +406,42 @@ export function ConcertPresentationMode({
                 <span>✏️</span>
                 <span className="hidden xs:inline">Editar Música</span>
               </button>
+
+              {onRemoveFromSetlist && !currentItem.id.startsWith("temp-") && (
+                <button
+                  type="button"
+                  disabled={isRemovingFromSetlist}
+                  onClick={async () => {
+                    const confirmMsg = `Deseja remover "${music.title}" da playlist deste show?`;
+                    if (!window.confirm(confirmMsg)) return;
+                    setIsRemovingFromSetlist(true);
+                    try {
+                      await onRemoveFromSetlist(currentItem.id);
+                      if (setlist.length <= 1) {
+                        onClose();
+                      } else {
+                        const nextIdx =
+                          currentIndex >= setlist.length - 1
+                            ? Math.max(0, currentIndex - 1)
+                            : currentIndex;
+                        setCurrentIndex(nextIdx);
+                      }
+                    } finally {
+                      setIsRemovingFromSetlist(false);
+                    }
+                  }}
+                  className="rounded-lg bg-zinc-800/90 hover:bg-red-950/60 border border-zinc-700/80 hover:border-red-800/80 px-2 py-0.5 text-xs font-semibold text-zinc-300 hover:text-red-400 transition-all cursor-pointer inline-flex items-center gap-1 shrink-0 disabled:opacity-50"
+                  title="Remover esta música da playlist deste show"
+                  aria-label={`Remover ${music.title} da playlist deste show`}
+                >
+                  {isRemovingFromSetlist ? (
+                    <span className="h-3 w-3 animate-spin rounded-full border border-red-400 border-t-transparent" />
+                  ) : (
+                    <span>🗑️</span>
+                  )}
+                  <span className="hidden xs:inline">Remover do Show</span>
+                </button>
+              )}
             </div>
             <span className="text-[11px] sm:text-xs text-zinc-400 truncate block mt-0.5">
               {music.artist} • <span className="text-zinc-500">{concertTitle}</span>
@@ -455,7 +508,7 @@ export function ConcertPresentationMode({
           if (onComplete) {
             onComplete(currentItem.id);
           }
-          onClose();
+          onClose(currentIndex);
         }}
         className="fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-6 py-3 text-xs sm:text-sm font-black shadow-2xl shadow-emerald-500/30 active:scale-95 transition-all cursor-pointer"
         title="Concluir música e voltar ao setlist"
