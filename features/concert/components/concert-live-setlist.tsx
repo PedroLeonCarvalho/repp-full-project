@@ -1194,7 +1194,6 @@ export function ConcertLiveSetlist({
           if (!editingMusic) return { success: false, error: "Música não encontrada." };
           const res = await updateMusicAction(editingMusic.id, data);
           if (res.success) {
-            setEditingMusic(null);
             const [updatedConcert, updatedMusics] = await Promise.all([
               getConcertByIdAction(concertId),
               listMusicsAction(),

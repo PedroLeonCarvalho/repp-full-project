@@ -528,7 +528,6 @@ export function ConcertPresentationMode({
           if (res.success && res.data) {
             const updated = res.data;
             setMusicOverrides((prev) => ({ ...prev, [updated.id]: updated }));
-            setEditingMusic(null);
           }
           return res;
         }}

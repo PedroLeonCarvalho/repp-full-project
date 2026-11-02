@@ -80,12 +80,17 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestSearchQueryRef = useRef<string>("");
+  const modalContainerRef = useRef<HTMLDivElement>(null);
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Clean up debounce timer on unmount
+  // Clean up timers on unmount
   useEffect(() => {
     return () => {
       if (searchDebounceRef.current) {
         clearTimeout(searchDebounceRef.current);
+      }
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
       }
     };
   }, []);
@@ -170,6 +175,7 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrorMessage, setFormErrorMessage] = useState<string | null>(null);
+  const [formSuccessMessage, setFormSuccessMessage] = useState<string | null>(null);
 
   // Auto focus search input on mount when in search mode
   useEffect(() => {
@@ -357,13 +363,25 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormErrorMessage(null);
+    setFormSuccessMessage(null);
+
+    const scrollToBottom = () => {
+      if (modalContainerRef.current) {
+        modalContainerRef.current.scrollTo({
+          top: modalContainerRef.current.scrollHeight,
+          behavior: "smooth",
+        });
+      }
+    };
 
     if (!title.trim()) {
       setFormErrorMessage("O título da música é obrigatório.");
+      scrollToBottom();
       return;
     }
     if (!artist.trim()) {
       setFormErrorMessage("O nome do artista é obrigatório.");
+      scrollToBottom();
       return;
     }
 
@@ -407,12 +425,22 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
 
       const res = await onSubmit(payload);
       if (res.success) {
-        onClose();
+        setFormSuccessMessage(
+          isEditing
+            ? "Música atualizada com sucesso!"
+            : "Música cadastrada com sucesso!"
+        );
+        scrollToBottom();
+        closeTimeoutRef.current = setTimeout(() => {
+          onClose();
+        }, 1200);
       } else {
         setFormErrorMessage(res.error || "Ocorreu um erro ao salvar a música.");
+        scrollToBottom();
       }
     } catch {
       setFormErrorMessage("Erro de conexão ao salvar música.");
+      scrollToBottom();
     } finally {
       setIsSubmitting(false);
     }
@@ -420,7 +448,10 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="relative w-full max-w-xl rounded-3xl bg-zinc-900 border border-zinc-800 p-5 sm:p-6 text-zinc-100 shadow-2xl my-8 max-h-[90vh] overflow-y-auto flex flex-col">
+      <div
+        ref={modalContainerRef}
+        className="relative w-full max-w-xl rounded-3xl bg-zinc-900 border border-zinc-800 p-5 sm:p-6 text-zinc-100 shadow-2xl my-8 max-h-[90vh] overflow-y-auto flex flex-col"
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-800 pb-4 mb-4">
           <div className="flex items-center gap-2.5">
@@ -637,11 +668,6 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
         ) : (
           /* ─── 2. STEP: FORM VIEW (Canonical Selected, Manual, or Edit Mode) ─── */
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            {formErrorMessage && (
-              <div className="rounded-xl bg-red-950/60 border border-red-800/80 p-3.5 text-xs text-red-200">
-                {formErrorMessage}
-              </div>
-            )}
 
             {/* ─── Title & Artist Section ─── */}
             <div className="rounded-2xl bg-zinc-850/60 border border-zinc-800 p-3.5 space-y-3">
@@ -1047,27 +1073,104 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
               />
             </div>
 
-            {/* ─── Actions ─── */}
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-800">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={isSubmitting}
-                className="rounded-xl px-4 py-2.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="rounded-xl bg-emerald-500 px-5 py-2.5 text-xs font-semibold text-zinc-950 hover:bg-emerald-400 transition-colors disabled:opacity-50 cursor-pointer"
-              >
-                {isSubmitting
-                  ? "Salvando..."
-                  : isEditing
-                  ? "Atualizar Música"
-                  : "Cadastrar Música"}
-              </button>
+            {/* ─── Actions & Feedback ─── */}
+            <div className="pt-3.5 border-t border-zinc-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              {/* Feedback messages positioned right next to action buttons */}
+              <div className="flex-1 min-w-0">
+                {formSuccessMessage && (
+                  <div
+                    role="status"
+                    className="flex items-center gap-2 rounded-xl bg-emerald-950/90 border border-emerald-500/60 px-3.5 py-2 text-xs font-semibold text-emerald-300 shadow-lg animate-in fade-in slide-in-from-bottom-2"
+                  >
+                    <svg
+                      className="w-4 h-4 shrink-0 text-emerald-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2.5}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                    <span className="truncate sm:whitespace-normal">
+                      {formSuccessMessage}
+                    </span>
+                  </div>
+                )}
+                {formErrorMessage && (
+                  <div
+                    role="alert"
+                    className="flex items-center gap-2 rounded-xl bg-rose-950/90 border border-rose-500/60 px-3.5 py-2 text-xs font-medium text-rose-300 shadow-lg animate-in fade-in slide-in-from-bottom-2"
+                  >
+                    <svg
+                      className="w-4 h-4 shrink-0 text-rose-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <span className="text-xs">{formErrorMessage}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-2.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={isSubmitting || Boolean(formSuccessMessage)}
+                  className="rounded-xl px-4 py-2.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors disabled:opacity-40"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting || Boolean(formSuccessMessage)}
+                  className={`rounded-xl px-5 py-2.5 text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed ${
+                    formSuccessMessage
+                      ? "bg-emerald-600 text-white shadow-lg shadow-emerald-950/50 ring-2 ring-emerald-400/50"
+                      : "bg-emerald-500 text-zinc-950 hover:bg-emerald-400 disabled:opacity-50"
+                  }`}
+                >
+                  {formSuccessMessage ? (
+                    <>
+                      <svg
+                        className="h-4 w-4 text-white shrink-0"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2.5}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                      <span>{isEditing ? "Atualizado!" : "Cadastrado!"}</span>
+                    </>
+                  ) : isSubmitting ? (
+                    <>
+                      <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-950 border-t-transparent" />
+                      <span>Salvando...</span>
+                    </>
+                  ) : isEditing ? (
+                    "Atualizar Música"
+                  ) : (
+                    "Cadastrar Música"
+                  )}
+                </button>
+              </div>
             </div>
           </form>
         )}

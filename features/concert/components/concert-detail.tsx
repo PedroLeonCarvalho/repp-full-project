@@ -684,7 +684,6 @@ export function ConcertDetail({
           if (!editingMusic) return { success: false, error: "Música não encontrada." };
           const res = await updateMusicAction(editingMusic.id, data);
           if (res.success) {
-            setEditingMusic(null);
             void refreshConcert();
           }
           return res;

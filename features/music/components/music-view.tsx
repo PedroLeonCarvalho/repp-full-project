@@ -130,13 +130,6 @@ export function MusicView() {
     }
 
     if (res.success) {
-      setFeedbackMessage({
-        type: "success",
-        text: editingMusic
-          ? "Música atualizada com sucesso!"
-          : "Música cadastrada com sucesso!",
-      });
-      setTimeout(() => setFeedbackMessage(null), 3500);
       startTransition(() => {
         void refreshMusics();
       });
@@ -219,27 +212,6 @@ export function MusicView() {
         </button>
       </div>
 
-      {/* Global Feedback Banner */}
-      {feedbackMessage && (
-        <div
-          className={`flex items-center justify-between rounded-2xl p-3.5 text-xs font-medium border ${
-            feedbackMessage.type === "success"
-              ? "bg-emerald-950/80 border-emerald-800 text-emerald-200"
-              : feedbackMessage.type === "info"
-              ? "bg-sky-950/80 border-sky-800 text-sky-200"
-              : "bg-red-950/80 border-red-800 text-red-200"
-          }`}
-        >
-          <span>{feedbackMessage.text}</span>
-          <button
-            type="button"
-            onClick={() => setFeedbackMessage(null)}
-            className="text-zinc-400 hover:text-zinc-200 ml-2"
-          >
-            ✕
-          </button>
-        </div>
-      )}
 
       {/* Filters */}
       <MusicFilters
@@ -353,6 +325,37 @@ export function MusicView() {
           }}
           onSubmit={handleCreateConcertSubmit}
         />
+      )}
+
+      {/* Floating Feedback Toast */}
+      {feedbackMessage && (
+        <div
+          role="status"
+          className={`fixed bottom-6 left-4 right-4 sm:left-auto sm:right-6 z-50 flex items-center justify-between gap-3 rounded-2xl p-3.5 text-xs sm:text-sm font-semibold border shadow-2xl backdrop-blur-md max-w-md ml-auto animate-in fade-in slide-in-from-bottom-4 ${
+            feedbackMessage.type === "success"
+              ? "bg-emerald-950/95 border-emerald-700/80 text-emerald-200 shadow-emerald-950/50"
+              : feedbackMessage.type === "info"
+              ? "bg-sky-950/95 border-sky-700/80 text-sky-200 shadow-sky-950/50"
+              : "bg-red-950/95 border-red-700/80 text-red-200 shadow-red-950/50"
+          }`}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            {feedbackMessage.type === "success" && (
+              <svg className="w-4 h-4 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+            <span className="truncate">{feedbackMessage.text}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setFeedbackMessage(null)}
+            className="text-zinc-400 hover:text-zinc-200 p-1 transition-colors shrink-0"
+            aria-label="Fechar notificação"
+          >
+            ✕
+          </button>
+        </div>
       )}
     </div>
   );
