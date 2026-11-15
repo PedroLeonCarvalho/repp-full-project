@@ -46,6 +46,7 @@ export function ConcertLiveSetlist({
   const [removingItemId, setRemovingItemId] = useState<string | null>(null);
   const [lastSelectedItemId, setLastSelectedItemId] = useState<string | null>(null);
   const [lastSelectedMusicId, setLastSelectedMusicId] = useState<string | null>(null);
+  const [activeMenuItemId, setActiveMenuItemId] = useState<string | null>(null);
   const prevActivePresentationRef = useRef(activePresentation);
 
   const toggleCompleteItem = (itemId: string) => {
@@ -1071,19 +1072,19 @@ export function ConcertLiveSetlist({
                       )}
                     </div>
 
-                    {/* Right: Tune (Tom), Notes & Dedicated "Letra", "Cifra" and "Editar" Buttons */}
+                    {/* Right: Tune (Tom), short Note & actions menu */}
                     <div
                       className={`flex items-center gap-1.5 sm:gap-2 shrink-0 transition-opacity ${
                         isCompleted ? "opacity-60" : "opacity-100"
                       }`}
                     >
-                      {/* Note badge */}
+                      {/* Note badge (max 12 characters) */}
                       {noteText && (
                         <span
-                          className="rounded-md bg-amber-950/40 border border-amber-800/60 px-1.5 py-0.5 text-[11px] text-amber-300 truncate max-w-[120px] sm:max-w-[200px]"
+                          className="rounded-md bg-amber-950/40 border border-amber-800/60 px-1.5 py-0.5 text-[11px] text-amber-300 whitespace-nowrap"
                           title={noteText}
                         >
-                          💬 {noteText}
+                          💬 {noteText.length > 12 ? `${noteText.slice(0, 12)}…` : noteText}
                         </span>
                       )}
 
@@ -1094,69 +1095,95 @@ export function ConcertLiveSetlist({
                         </span>
                       )}
 
-                      {/* Letra Button */}
-                      {hasLyrics ? (
+                      {/* Actions menu (Letra, Cifra, Editar, Excluir) */}
+                      <div className="relative shrink-0">
                         <button
                           type="button"
-                          onClick={() => openPresentation(index, undefined, "lyrics")}
-                          className="rounded-lg bg-emerald-500/15 border border-emerald-500/40 px-2.5 py-1 text-xs font-bold text-emerald-400 hover:bg-emerald-500 hover:text-zinc-950 transition-all active:scale-95 cursor-pointer shrink-0"
-                          title="Ver letra desta música no palco"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveMenuItemId(activeMenuItemId === item.id ? null : item.id);
+                          }}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800/80 border border-zinc-700/60 text-zinc-300 hover:text-white hover:bg-zinc-700 transition-all active:scale-95 cursor-pointer"
+                          title="Opções da música"
+                          aria-label={`Opções de ${music.title}`}
                         >
-                          Letra
+                          {removingItemId === item.id ? (
+                            <span className="h-3 w-3 animate-spin rounded-full border border-red-400 border-t-transparent" />
+                          ) : (
+                            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                              <circle cx="12" cy="5" r="2" />
+                              <circle cx="12" cy="12" r="2" />
+                              <circle cx="12" cy="19" r="2" />
+                            </svg>
+                          )}
                         </button>
-                      ) : (
-                        <span className="rounded-lg bg-zinc-800/50 border border-zinc-700/30 px-2 py-1 text-[10px] font-medium text-zinc-600 shrink-0 hidden sm:inline">
-                          Sem letra
-                        </span>
-                      )}
 
-                      {/* Cifra Button */}
-                      {hasChords ? (
-                        <button
-                          type="button"
-                          onClick={() => openPresentation(index, undefined, "chords")}
-                          className="rounded-lg bg-amber-500/15 border border-amber-500/40 px-2.5 py-1 text-xs font-bold text-amber-400 hover:bg-amber-500 hover:text-zinc-950 transition-all active:scale-95 cursor-pointer shrink-0 flex items-center gap-1"
-                          title="Ver cifra desta música no palco"
-                        >
-                          <span>🎸</span>
-                          <span>Cifra</span>
-                        </button>
-                      ) : (
-                        <span className="rounded-lg bg-zinc-800/50 border border-zinc-700/30 px-2 py-1 text-[10px] font-medium text-zinc-600 shrink-0 hidden sm:inline">
-                          Sem cifra
-                        </span>
-                      )}
-
-                      {/* Edit Button */}
-                      <button
-                        type="button"
-                        onClick={() => setEditingMusic(music)}
-                        className="rounded-lg bg-zinc-800/80 border border-zinc-700/60 px-2 py-1 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-700 transition-all active:scale-95 cursor-pointer shrink-0 flex items-center gap-1"
-                        title="Editar dados da música (letra, cifra, tom, observação)"
-                      >
-                        <span>✏️</span>
-                        <span className="hidden xs:inline">Editar</span>
-                      </button>
-
-                      {/* Delete from this specific setlist button */}
-                      <button
-                        type="button"
-                        disabled={removingItemId === item.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void handleRemoveSetlistItem(item.id, music.title);
-                        }}
-                        className="rounded-lg bg-zinc-800/80 hover:bg-red-950/60 border border-zinc-700/60 hover:border-red-800/80 px-2 py-1 text-xs font-semibold text-zinc-400 hover:text-red-400 transition-all active:scale-95 cursor-pointer shrink-0 flex items-center gap-1 disabled:opacity-50"
-                        title="Remover esta música da playlist deste show"
-                        aria-label={`Remover ${music.title} da playlist deste show`}
-                      >
-                        {removingItemId === item.id ? (
-                          <span className="h-3 w-3 animate-spin rounded-full border border-red-400 border-t-transparent" />
-                        ) : (
-                          <span>🗑️</span>
+                        {activeMenuItemId === item.id && (
+                          <>
+                            <div
+                              className="fixed inset-0 z-40 bg-black/30"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveMenuItemId(null);
+                              }}
+                            />
+                            <div className="absolute right-0 top-full mt-1.5 z-50 w-44 rounded-2xl bg-zinc-800 border border-zinc-700 shadow-2xl p-1.5 flex flex-col gap-0.5">
+                              <button
+                                type="button"
+                                disabled={!hasLyrics}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveMenuItemId(null);
+                                  openPresentation(index, undefined, "lyrics");
+                                }}
+                                className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-emerald-400 hover:bg-zinc-700/70 rounded-xl transition-colors text-left cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                <span className="text-sm">🎤</span>
+                                <span>{hasLyrics ? "Letra" : "Sem letra"}</span>
+                              </button>
+                              <button
+                                type="button"
+                                disabled={!hasChords}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveMenuItemId(null);
+                                  openPresentation(index, undefined, "chords");
+                                }}
+                                className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-amber-400 hover:bg-zinc-700/70 rounded-xl transition-colors text-left cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                <span className="text-sm">🎸</span>
+                                <span>{hasChords ? "Cifra" : "Sem cifra"}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveMenuItemId(null);
+                                  setEditingMusic(music);
+                                }}
+                                className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-700/70 rounded-xl transition-colors text-left cursor-pointer"
+                              >
+                                <span className="text-sm">✏️</span>
+                                <span>Editar</span>
+                              </button>
+                              <div className="h-px bg-zinc-700/60 my-0.5" />
+                              <button
+                                type="button"
+                                disabled={removingItemId === item.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveMenuItemId(null);
+                                  void handleRemoveSetlistItem(item.id, music.title);
+                                }}
+                                className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-red-400 hover:bg-red-950/40 rounded-xl transition-colors text-left cursor-pointer disabled:opacity-50"
+                              >
+                                <span className="text-sm">🗑️</span>
+                                <span>Excluir</span>
+                              </button>
+                            </div>
+                          </>
                         )}
-                        <span className="hidden sm:inline text-red-400/90">Excluir</span>
-                      </button>
+                      </div>
                     </div>
                   </div>
                 );
