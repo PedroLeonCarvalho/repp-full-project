@@ -3,13 +3,14 @@
 import { useState } from "react";
 import type { Music } from "../types";
 import { GENRE_LABELS } from "./music-filters";
+import { CifraClubSearchButton } from "./cifraclub-search-button";
 
 interface MusicListProps {
   musics: Music[];
   selectedIds: Set<string>;
   onToggleSelect: (id: string) => void;
   onClearSelection: () => void;
-  onSelect: (music: Music, initialTab?: "lyrics" | "chords") => void;
+  onSelect: (music: Music) => void;
   onEdit: (music: Music) => void;
   onDelete: (id: string) => void;
   onOpenCreate: () => void;
@@ -133,7 +134,6 @@ export function MusicList({
           const isSelected = selectedIds.has(music.id);
           const displayKey = music.preferredKey || music.originalKey;
           const hasLyrics = Boolean(music.lyrics && music.lyrics.trim());
-          const hasChords = Boolean(music.chords && music.chords.trim());
 
           return (
             <div
@@ -160,7 +160,7 @@ export function MusicList({
                 {/* Clickable Title & Details */}
                 <button
                   type="button"
-                  onClick={() => onSelect(music, hasLyrics ? "lyrics" : hasChords ? "chords" : "lyrics")}
+                  onClick={() => onSelect(music)}
                   className="flex flex-1 flex-col text-left focus:outline-none min-w-0"
                 >
                   {/* Title + Tone Tag directly next to Title */}
@@ -265,7 +265,7 @@ export function MusicList({
                     {hasLyrics ? (
                       <button
                         type="button"
-                        onClick={() => onSelect(music, "lyrics")}
+                        onClick={() => onSelect(music)}
                         className="inline-flex items-center gap-1 rounded-xl bg-emerald-500/15 hover:bg-emerald-500 hover:text-zinc-950 border border-emerald-500/35 px-2.5 py-1.5 text-xs font-bold text-emerald-400 transition-all active:scale-95 cursor-pointer"
                         title="Ver letra da música"
                       >
@@ -277,22 +277,11 @@ export function MusicList({
                       </span>
                     )}
 
-                    {/* Dedicated "Cifra" Button */}
-                    {hasChords ? (
-                      <button
-                        type="button"
-                        onClick={() => onSelect(music, "chords")}
-                        className="inline-flex items-center gap-1 rounded-xl bg-amber-500/15 hover:bg-amber-500 hover:text-zinc-950 border border-amber-500/35 px-2.5 py-1.5 text-xs font-bold text-amber-400 transition-all active:scale-95 cursor-pointer"
-                        title="Ver cifra da música"
-                      >
-                        <span>🎸</span>
-                        <span>Cifra</span>
-                      </button>
-                    ) : (
-                      <span className="rounded-xl bg-zinc-800/40 border border-zinc-700/30 px-2 py-1.5 text-[11px] font-medium text-zinc-600 select-none hidden xs:inline">
-                        Sem cifra
-                      </span>
-                    )}
+                    <CifraClubSearchButton
+                      title={music.title}
+                      artist={music.artist}
+                      variant="compact"
+                    />
 
                     {/* Add to Concert button on card */}
                     <button

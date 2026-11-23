@@ -2,9 +2,8 @@ import { randomBytes } from "crypto";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { concerts } from "@/db/schema/concerts";
-import { setlistItems } from "@/db/schema/setlist-items";
+import { setlistMusic } from "@/db/schema/setlist-music";
 import { customerMusics } from "@/db/schema/customer-musics";
-import { musicCatalog } from "@/db/schema/music-catalog";
 import { projects } from "@/db/schema/projects";
 import { contractors } from "@/db/schema/contractors";
 import { concertMusicians } from "@/db/schema/concert-musicians";
@@ -16,7 +15,7 @@ import type {
   PublicSharedConcert,
   UpdateConcertInput,
 } from "../types";
-import type { MusicGenre } from "@/features/music/types";
+import type { Music, MusicGenre } from "@/features/music/types";
 import {
   createConcertSchema,
   updateConcertSchema,
@@ -268,6 +267,31 @@ export async function deleteConcert(
   return { success: true };
 }
 
+type SetlistMusicRow = typeof setlistMusic.$inferSelect;
+
+/** Maps a setlist_music row to the Music shape used by the UI. id is the setlist row id. */
+function setlistRowToMusic(r: SetlistMusicRow, customerId: string): Music {
+  const genres = (r.genres as MusicGenre[] | null) ?? (r.genre ? [r.genre] : null);
+  return {
+    id: r.id,
+    customerId,
+    title: r.title,
+    artist: r.artist,
+    lyrics: r.lyrics,
+    chords: r.chords,
+    originalKey: r.originalKey,
+    preferredKey: r.preferredKey,
+    studying: r.studying,
+    genre: r.genre,
+    genres,
+    note: r.note,
+    spotifyLink: r.spotifyLink,
+    sheetMusicFile: r.sheetMusicFile,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  };
+}
+
 export async function getConcertById(
   id: string,
   customerId: string
@@ -288,49 +312,21 @@ export async function getConcertById(
     return null;
   }
 
-  const rawItems = await db
-    .select({
-      id: setlistItems.id,
-      concertId: setlistItems.concertId,
-      musicId: setlistItems.musicId,
-      position: setlistItems.position,
-      note: setlistItems.note,
-      createdAt: setlistItems.createdAt,
-      cm: customerMusics,
-      mc: musicCatalog,
-    })
-    .from(setlistItems)
-    .innerJoin(customerMusics, eq(customerMusics.id, setlistItems.musicId))
-    .innerJoin(musicCatalog, eq(musicCatalog.id, customerMusics.musicCatalogId))
-    .where(eq(setlistItems.concertId, id))
-    .orderBy(asc(setlistItems.position));
+  const rows = await db
+    .select()
+    .from(setlistMusic)
+    .where(eq(setlistMusic.concertId, id))
+    .orderBy(asc(setlistMusic.position));
 
-  const items = rawItems.map((r) => ({
+  const items = rows.map((r) => ({
     id: r.id,
     concertId: r.concertId,
-    musicId: r.musicId,
+    // Library song this row was copied from (null if it was since deleted)
+    musicId: r.sourceCustomerMusicId,
     position: r.position,
     note: r.note,
     createdAt: r.createdAt,
-    music: {
-      id: r.cm.id,
-      musicCatalogId: r.cm.musicCatalogId,
-      customerId: r.cm.customerId,
-      title: r.mc.title,
-      artist: r.mc.artist,
-      lyrics: r.cm.lyrics ?? r.mc.canonicalLyrics,
-      chords: r.cm.chords ?? r.mc.canonicalChords,
-      originalKey: r.cm.originalKey,
-      preferredKey: r.cm.preferredKey,
-      studying: r.cm.studying,
-      genre: r.cm.genre,
-      genres: (r.cm.genres as MusicGenre[]) ?? (r.cm.genre ? [r.cm.genre as MusicGenre] : null),
-      note: r.cm.note,
-      spotifyLink: r.cm.spotifyLink,
-      sheetMusicFile: r.cm.sheetMusicFile,
-      createdAt: r.cm.createdAt,
-      updatedAt: r.cm.updatedAt,
-    },
+    music: setlistRowToMusic(r, concert.concert.customerId),
   }));
 
   const mappedConcert = mapConcert(concert.concert);
@@ -389,11 +385,11 @@ export async function listConcertsByProject(
     .select({
       concert: concerts,
       contractorName: contractors.contactPersonName,
-      setlistCount: sql<number>`count(${setlistItems.id})::int`,
+      setlistCount: sql<number>`count(${setlistMusic.id})::int`,
     })
     .from(concerts)
     .leftJoin(contractors, eq(contractors.id, concerts.contractorId))
-    .leftJoin(setlistItems, eq(setlistItems.concertId, concerts.id))
+    .leftJoin(setlistMusic, eq(setlistMusic.concertId, concerts.id))
     .where(and(eq(concerts.projectId, projectId), eq(concerts.customerId, customerId)))
     .groupBy(concerts.id, contractors.contactPersonName)
     .orderBy(desc(concerts.presentationDate), desc(concerts.startTime));
@@ -415,12 +411,12 @@ export async function listAllConcerts(
       concert: concerts,
       projectName: projects.name,
       contractorName: contractors.contactPersonName,
-      setlistCount: sql<number>`count(${setlistItems.id})::int`,
+      setlistCount: sql<number>`count(${setlistMusic.id})::int`,
     })
     .from(concerts)
     .innerJoin(projects, eq(projects.id, concerts.projectId))
     .leftJoin(contractors, eq(contractors.id, concerts.contractorId))
-    .leftJoin(setlistItems, eq(setlistItems.concertId, concerts.id))
+    .leftJoin(setlistMusic, eq(setlistMusic.concertId, concerts.id))
     .where(eq(concerts.customerId, customerId))
     .groupBy(concerts.id, projects.name, contractors.contactPersonName)
     .orderBy(desc(concerts.presentationDate), desc(concerts.startTime));
@@ -470,16 +466,34 @@ export async function duplicateConcert(
     })
     .returning();
 
-  // 2. Clone setlist items in same order
-  if (original.setlist.length > 0) {
-    for (const item of original.setlist) {
-      await db.insert(setlistItems).values({
+  // 2. Copy each setlist song into the new concert, in the same order.
+  // The rows are copied as-is, so the new concert is independent of the original.
+  const originalRows = await db
+    .select()
+    .from(setlistMusic)
+    .where(eq(setlistMusic.concertId, concertId))
+    .orderBy(asc(setlistMusic.position));
+
+  if (originalRows.length > 0) {
+    await db.insert(setlistMusic).values(
+      originalRows.map((row) => ({
         concertId: cloned.id,
-        musicId: item.musicId,
-        position: item.position,
-        note: item.note,
-      });
-    }
+        sourceCustomerMusicId: row.sourceCustomerMusicId,
+        position: row.position,
+        note: row.note,
+        title: row.title,
+        artist: row.artist,
+        lyrics: row.lyrics,
+        chords: row.chords,
+        originalKey: row.originalKey,
+        preferredKey: row.preferredKey,
+        studying: row.studying,
+        genre: row.genre,
+        genres: row.genres,
+        spotifyLink: row.spotifyLink,
+        sheetMusicFile: row.sheetMusicFile,
+      }))
+    );
   }
 
   // 3. Clone musicians
@@ -527,36 +541,48 @@ export async function addMusicsToSetlist(
     );
   }
 
-  // 2. Verify all musics belong to customer
-  const verifiedMusics = await db
-    .select({ id: customerMusics.id })
+  // 2. Load the library songs; they must belong to the customer
+  const libraryMusics = await db
+    .select()
     .from(customerMusics)
     .where(and(eq(customerMusics.customerId, customerId), inArray(customerMusics.id, musicIds)));
 
-  if (verifiedMusics.length === 0) {
+  if (libraryMusics.length === 0) {
     return { addedCount: 0 };
   }
 
   // 3. Get current maximum position
   const [maxPosResult] = await db
-    .select({ maxPos: sql<number>`coalesce(max(${setlistItems.position}), 0)::int` })
-    .from(setlistItems)
-    .where(eq(setlistItems.concertId, concertId));
+    .select({ maxPos: sql<number>`coalesce(max(${setlistMusic.position}), 0)::int` })
+    .from(setlistMusic)
+    .where(eq(setlistMusic.concertId, concertId));
 
   let currentPos = maxPosResult?.maxPos || 0;
-  let addedCount = 0;
 
-  for (const music of verifiedMusics) {
-    currentPos++;
-    await db.insert(setlistItems).values({
-      concertId,
-      musicId: music.id,
-      position: currentPos,
-    });
-    addedCount++;
-  }
+  // 4. Copy each library song into the concert (copy-on-add)
+  await db.insert(setlistMusic).values(
+    libraryMusics.map((music) => {
+      currentPos++;
+      return {
+        concertId,
+        sourceCustomerMusicId: music.id,
+        position: currentPos,
+        title: music.title,
+        artist: music.artist,
+        lyrics: music.lyrics,
+        chords: music.chords,
+        originalKey: music.originalKey,
+        preferredKey: music.preferredKey,
+        studying: music.studying,
+        genre: music.genre,
+        genres: music.genres,
+        spotifyLink: music.spotifyLink,
+        sheetMusicFile: music.sheetMusicFile,
+      };
+    })
+  );
 
-  return { addedCount };
+  return { addedCount: libraryMusics.length };
 }
 
 export async function removeSetlistItem(
@@ -580,21 +606,21 @@ export async function removeSetlistItem(
 
   // 2. Delete item
   await db
-    .delete(setlistItems)
-    .where(and(eq(setlistItems.id, setlistItemId), eq(setlistItems.concertId, concertId)));
+    .delete(setlistMusic)
+    .where(and(eq(setlistMusic.id, setlistItemId), eq(setlistMusic.concertId, concertId)));
 
   // 3. Re-compact positions
   const remaining = await db
-    .select({ id: setlistItems.id })
-    .from(setlistItems)
-    .where(eq(setlistItems.concertId, concertId))
-    .orderBy(asc(setlistItems.position));
+    .select({ id: setlistMusic.id })
+    .from(setlistMusic)
+    .where(eq(setlistMusic.concertId, concertId))
+    .orderBy(asc(setlistMusic.position));
 
   for (let i = 0; i < remaining.length; i++) {
     await db
-      .update(setlistItems)
+      .update(setlistMusic)
       .set({ position: i + 1 })
-      .where(eq(setlistItems.id, remaining[i].id));
+      .where(eq(setlistMusic.id, remaining[i].id));
   }
 
   return { success: true };
@@ -621,12 +647,12 @@ export async function reorderSetlist(
 
   for (let i = 0; i < orderedItemIds.length; i++) {
     await db
-      .update(setlistItems)
+      .update(setlistMusic)
       .set({ position: i + 1 })
       .where(
         and(
-          eq(setlistItems.id, orderedItemIds[i]),
-          eq(setlistItems.concertId, concertId)
+          eq(setlistMusic.id, orderedItemIds[i]),
+          eq(setlistMusic.concertId, concertId)
         )
       );
   }
@@ -738,36 +764,28 @@ export async function getSharedConcertByToken(
 
   const { concert, projectName } = found;
 
-  // Retrieve ordered setlist with music details
+  // Retrieve ordered setlist (setlist_music only; no library join)
   const rawItems2 = await db
-    .select({
-      id: setlistItems.id,
-      position: setlistItems.position,
-      note: setlistItems.note,
-      cm: customerMusics,
-      mc: musicCatalog,
-    })
-    .from(setlistItems)
-    .innerJoin(customerMusics, eq(customerMusics.id, setlistItems.musicId))
-    .innerJoin(musicCatalog, eq(musicCatalog.id, customerMusics.musicCatalogId))
-    .where(eq(setlistItems.concertId, concert.id))
-    .orderBy(asc(setlistItems.position));
+    .select()
+    .from(setlistMusic)
+    .where(eq(setlistMusic.concertId, concert.id))
+    .orderBy(asc(setlistMusic.position));
 
   const sanitizedSetlist = rawItems2.map((item) => ({
     id: item.id,
     position: item.position,
     note: item.note,
     music: {
-      id: item.cm.id,
-      title: item.mc.title,
-      artist: item.mc.artist,
-      preferredKey: item.cm.preferredKey,
-      originalKey: item.cm.originalKey,
-      lyrics: item.cm.lyrics ?? item.mc.canonicalLyrics,
-      chords: item.cm.chords ?? item.mc.canonicalChords,
-      spotifyLink: item.cm.spotifyLink,
-      studying: item.cm.studying,
-      note: item.cm.note,
+      id: item.id,
+      title: item.title,
+      artist: item.artist,
+      preferredKey: item.preferredKey,
+      originalKey: item.originalKey,
+      lyrics: item.lyrics,
+      chords: item.chords,
+      spotifyLink: item.spotifyLink,
+      studying: item.studying,
+      note: item.note,
     },
   }));
 

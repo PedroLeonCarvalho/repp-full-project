@@ -4,10 +4,6 @@ import { MUSICAL_KEYS, MUSIC_GENRES } from "@/db/schema/enums";
 export const musicalKeySchema = z.enum(MUSICAL_KEYS);
 export const musicGenreSchema = z.enum(MUSIC_GENRES);
 
-export const musicCatalogSearchSchema = z.object({
-  query: z.string().min(4, "Digite pelo menos 4 caracteres para buscar"),
-});
-
 export const createMusicSchema = z.object({
   title: z
     .string()
@@ -35,7 +31,6 @@ export const createMusicSchema = z.object({
     .nullable()
     .or(z.literal("")),
   sheetMusicFile: z.string().trim().optional().nullable(),
-  isCustom: z.boolean().default(false),
 });
 
 // Update: title and artist are excluded (immutable after creation)
@@ -71,4 +66,3 @@ export const musicFilterSchema = z.object({
 export type CreateMusicSchemaInput = z.infer<typeof createMusicSchema>;
 export type UpdateMusicSchemaInput = z.infer<typeof updateMusicSchema>;
 export type MusicFilterSchemaInput = z.infer<typeof musicFilterSchema>;
-export type MusicCatalogSearchInput = z.infer<typeof musicCatalogSearchSchema>;

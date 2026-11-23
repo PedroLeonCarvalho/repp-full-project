@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { MUSICAL_KEYS, MUSIC_GENRES } from "@/db/schema/enums";
 import type {
-  ChordSuggestion,
   CreateMusicInput,
   LyricsSearchResult,
   Music,
@@ -14,10 +13,8 @@ import type {
 import { GENRE_LABELS } from "./music-filters";
 import {
   searchLyricsAction,
-  searchChordsAction,
   uploadSheetMusicAction,
 } from "../actions/music-actions";
-import { ChordSearchCombobox } from "./chord-search-combobox";
 
 interface MusicFormProps {
   initialData?: Music | null;
@@ -99,7 +96,6 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
   const [title, setTitle] = useState(initialData?.title || "");
   const [artist, setArtist] = useState(initialData?.artist || "");
   const [lyrics, setLyrics] = useState(initialData?.lyrics || "");
-  const [chords, setChords] = useState(initialData?.chords || "");
   const [originalKey, setOriginalKey] = useState<MusicalKey | "">(
     initialData?.originalKey || ""
   );
@@ -165,13 +161,6 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
       }
     }
   };
-
-  // Decoupled chord search state
-  const [isSearchingChords, setIsSearchingChords] = useState(false);
-  const [chordsFeedback, setChordsFeedback] = useState<{
-    type: "info" | "success" | "warning" | "error";
-    text: string;
-  } | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrorMessage, setFormErrorMessage] = useState<string | null>(null);
@@ -274,62 +263,6 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
     }
   };
 
-  // Trigger chord search for a specific title and artist or explicit slugs
-  const fetchChords = async (
-    targetTitle: string,
-    targetArtist: string,
-    slugs?: { artistSlug?: string; songSlug?: string }
-  ) => {
-    if (!targetTitle.trim() || !targetArtist.trim()) return;
-
-    setIsSearchingChords(true);
-    setChordsFeedback(null);
-
-    try {
-      const res = await searchChordsAction(
-        targetTitle.trim(),
-        targetArtist.trim(),
-        slugs
-      );
-
-      if (!res.success) {
-        setChordsFeedback({
-          type: "warning",
-          text: "Cifra não encontrada para esta busca.",
-        });
-        return;
-      }
-
-      const found = res.data;
-      setChords(found.chordpro);
-
-      if (found.key && !originalKey) {
-        setOriginalKey(found.key as MusicalKey);
-      }
-
-      setChordsFeedback({
-        type: "success",
-        text: `✓ Cifra de "${found.title}" (${found.artist}) carregada com sucesso!`,
-      });
-    } catch {
-      setChordsFeedback({
-        type: "error",
-        text: "Falha de conexão com o servidor de cifras.",
-      });
-    } finally {
-      setIsSearchingChords(false);
-    }
-  };
-
-  // When a user selects a suggestion in the real-time chord combobox
-  const handleSelectChordSuggestion = (suggestion: ChordSuggestion) => {
-    // IMPORTANT: Keep canonical title and artist untouched
-    void fetchChords(suggestion.title, suggestion.artist, {
-      artistSlug: suggestion.artistSlug,
-      songSlug: suggestion.songSlug,
-    });
-  };
-
   // When a user selects a candidate from the canonical search results
   const handleSelectCanonicalSong = (item: LyricsSearchResult) => {
     setTitle(item.title);
@@ -337,9 +270,6 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
     setLyrics(item.plainLyrics);
     setIsManual(false);
     setViewMode("form");
-
-    // Auto-search chords in background
-    void fetchChords(item.title, item.artist);
   };
 
   // Switch to manual registration
@@ -348,15 +278,12 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
     setTitle("");
     setArtist("");
     setLyrics("");
-    setChords("");
-    setChordsFeedback(null);
     setViewMode("form");
   };
 
   // Switch back to search mode
   const handleBackToSearch = () => {
     setViewMode("search");
-    setChordsFeedback(null);
   };
 
   // Form Submission
@@ -393,7 +320,7 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
       if (isEditing) {
         const editPayload: Omit<UpdateMusicInput, "id"> = {
           lyrics: lyrics.trim() || null,
-          chords: chords.trim() || null,
+          chords: initialData?.chords ?? null,
           originalKey: originalKey ? (originalKey as MusicalKey) : null,
           preferredKey: preferredKey ? (preferredKey as MusicalKey) : null,
           studying,
@@ -408,9 +335,8 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
         const createPayload: CreateMusicInput = {
           title: title.trim(),
           artist: artist.trim(),
-          isCustom: isManual,
           lyrics: lyrics.trim() || null,
-          chords: chords.trim() || null,
+          chords: initialData?.chords ?? null,
           originalKey: originalKey ? (originalKey as MusicalKey) : null,
           preferredKey: preferredKey ? (preferredKey as MusicalKey) : null,
           studying,
@@ -749,65 +675,6 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
               )}
             </div>
 
-            {/* ─── Chords Section (Decoupled with Autocomplete Combobox & Feedback) ─── */}
-            <div className="rounded-2xl bg-zinc-850/60 border border-zinc-800 p-3.5 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-medium text-zinc-200">
-                  Cifra / Acordes
-                </label>
-                {isSearchingChords && (
-                  <span className="text-xs text-amber-400 flex items-center gap-1">
-                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-amber-400 border-t-transparent inline-block" />
-                    Carregando cifra...
-                  </span>
-                )}
-              </div>
-
-              {/* Real-time Autocomplete Combobox */}
-              <div className="space-y-1">
-                <ChordSearchCombobox
-                  onSelectSuggestion={handleSelectChordSuggestion}
-                  isLoadingChords={isSearchingChords}
-                  placeholder="Buscar cifra por título ou artista (autocomplete)..."
-                />
-                <p className="text-[11px] text-zinc-500">
-                  Digite a partir de 3 letras para buscar e associar a cifra exata sem alterar o título e artista canônicos.
-                </p>
-              </div>
-
-              {/* Chords Status Feedback */}
-              {chordsFeedback && (
-                <div
-                  className={`rounded-xl p-2.5 text-xs flex items-center justify-between gap-2 ${
-                    chordsFeedback.type === "success"
-                      ? "bg-emerald-950/60 border border-emerald-800 text-emerald-300"
-                      : chordsFeedback.type === "warning"
-                      ? "bg-amber-950/60 border border-amber-800 text-amber-300"
-                      : chordsFeedback.type === "error"
-                      ? "bg-red-950/60 border border-red-800 text-red-300"
-                      : "bg-zinc-800/80 border border-zinc-700 text-zinc-300"
-                  }`}
-                >
-                  <span>{chordsFeedback.text}</span>
-                  <button
-                    type="button"
-                    onClick={() => setChordsFeedback(null)}
-                    className="text-zinc-400 hover:text-zinc-200 cursor-pointer p-0.5 text-xs"
-                  >
-                    ✕
-                  </button>
-                </div>
-              )}
-
-              <textarea
-                rows={4}
-                value={chords}
-                onChange={(e) => setChords(e.target.value)}
-                placeholder="Cole aqui a cifra no formato ChordPro ou texto..."
-                className="w-full font-mono text-xs rounded-xl bg-zinc-800/80 p-3 text-zinc-100 border border-zinc-700/60 focus:border-emerald-500 focus:outline-none leading-relaxed"
-              />
-            </div>
-
             {/* ─── Lyrics Section ─── */}
             <div className="rounded-2xl bg-zinc-850/60 border border-zinc-800 p-3.5 space-y-2">
               <label className="block text-xs font-medium text-zinc-200">
@@ -970,7 +837,7 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
             {/* ─── Sheet Music (PDF Upload) ─── */}
             <div>
               <label className="block text-xs font-medium text-zinc-300 mb-1.5">
-                Partitura / Cifra (Anexo PDF)
+                Partitura (Anexo PDF)
               </label>
 
               {/* Hidden file input */}

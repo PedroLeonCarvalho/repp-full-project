@@ -27,10 +27,7 @@ export function MusicView() {
   // Modals state
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingMusic, setEditingMusic] = useState<Music | null>(null);
-  const [selectedMusicState, setSelectedMusicState] = useState<{
-    music: Music;
-    initialTab?: "lyrics" | "chords";
-  } | null>(null);
+  const [selectedMusicState, setSelectedMusicState] = useState<{ music: Music } | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<{
     type: "success" | "error" | "info";
     text: string;
@@ -252,7 +249,7 @@ export function MusicView() {
           selectedIds={selectedIds}
           onToggleSelect={handleToggleSelect}
           onClearSelection={handleClearSelection}
-          onSelect={(music, initialTab) => setSelectedMusicState({ music, initialTab })}
+          onSelect={(music) => setSelectedMusicState({ music })}
           onEdit={openEditModal}
           onDelete={handleDelete}
           onOpenCreate={openCreateModal}
@@ -275,7 +272,6 @@ export function MusicView() {
       {selectedMusicState && (
         <MusicDetail
           music={selectedMusicState.music}
-          initialTab={selectedMusicState.initialTab}
           onClose={() => setSelectedMusicState(null)}
           onEdit={(m) => {
             setSelectedMusicState(null);

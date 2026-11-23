@@ -28,9 +28,9 @@ export interface Concert {
 }
 
 export interface SetlistItem {
-  id: string;
+  id: string;                 // setlist_music.id (this row in the concert)
   concertId: string;
-  musicId: string;
+  musicId: string | null;     // library song it was copied from (customer_musics.id)
   position: number;
   note: string | null;
   createdAt: Date;

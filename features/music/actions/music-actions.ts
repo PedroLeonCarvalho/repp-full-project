@@ -11,14 +11,12 @@ import {
   MusicServiceError,
 } from "../services/music-service";
 import { lyricsService } from "../services/lyrics-service";
-import { chordsService } from "../services/chords-service";
 import {
   uploadSheetMusicFile,
   deleteSheetMusicFile,
   SheetMusicUploadError,
 } from "../services/sheet-music-upload-service";
 import type {
-  ChordSearchResult,
   CreateMusicInput,
   LyricsSearchResult,
   Music,
@@ -135,26 +133,6 @@ export async function searchLyricsAction(
     return {
       success: false,
       error: "Erro inesperado ao consultar letras.",
-    };
-  }
-}
-
-export async function searchChordsAction(
-  title: string,
-  artist: string,
-  slugs?: { artistSlug?: string; songSlug?: string }
-): Promise<ActionResult<ChordSearchResult>> {
-  try {
-    await requireAuthCustomerId();
-    const result = await chordsService.searchChords(title, artist, slugs);
-    return { success: true, data: result };
-  } catch (err) {
-    if (err instanceof Error) {
-      return { success: false, error: err.message };
-    }
-    return {
-      success: false,
-      error: "Erro inesperado ao buscar cifra.",
     };
   }
 }

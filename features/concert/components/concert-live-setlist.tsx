@@ -1,5 +1,6 @@
 "use client";
 
+import { CifraClubSearchButton } from "@/features/music/components/cifraclub-search-button";
 import { useEffect, useRef, useState } from "react";
 import type { ConcertWithSetlist, SetlistItem } from "../types";
 import {
@@ -32,7 +33,6 @@ export function ConcertLiveSetlist({
   const [activePresentation, setActivePresentation] = useState<{
     index?: number;
     customMusic?: Music;
-    mode: "lyrics" | "chords";
   } | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>("");
@@ -393,13 +393,12 @@ export function ConcertLiveSetlist({
   }
 
   const setlist = concert.setlist || [];
-  const existingMusicIds = new Set(setlist.map((it) => it.musicId));
+  const existingMusicIds = new Set(setlist.flatMap((it) => (it.musicId ? [it.musicId] : [])));
 
   // Helper to open presentation mode while recording the selected song
   const openPresentation = (
     index?: number,
-    customMusic?: Music,
-    mode: "lyrics" | "chords" = "lyrics"
+    customMusic?: Music
   ) => {
     if (index !== undefined && setlist[index]) {
       setLastSelectedItemId(setlist[index].id);
@@ -408,7 +407,7 @@ export function ConcertLiveSetlist({
       setLastSelectedItemId(`temp-${customMusic.id}`);
       setLastSelectedMusicId(customMusic.id);
     }
-    setActivePresentation({ index, customMusic, mode });
+    setActivePresentation({ index, customMusic });
   };
 
   // Compute presentation setlist and index (rendered as overlay so setlist scroll position is preserved)
@@ -456,7 +455,6 @@ export function ConcertLiveSetlist({
           (m.preferredKey && m.preferredKey.toLowerCase().includes(q)) ||
           (m.originalKey && m.originalKey.toLowerCase().includes(q));
         const lyricsMatch = m.lyrics && m.lyrics.toLowerCase().includes(q);
-        const chordsMatch = m.chords && m.chords.toLowerCase().includes(q);
         const noteMatch = m.note && m.note.toLowerCase().includes(q);
 
         const setlistItem = setlist.find((it) => it.musicId === m.id);
@@ -468,7 +466,6 @@ export function ConcertLiveSetlist({
           artistMatch ||
           keyMatch ||
           lyricsMatch ||
-          chordsMatch ||
           noteMatch ||
           setlistNoteMatch
         );
@@ -673,7 +670,6 @@ export function ConcertLiveSetlist({
                     ? `${setlistItem.note} (${music.note})`
                     : setlistItem?.note || music.note;
                 const hasLyrics = Boolean(music.lyrics && music.lyrics.trim());
-                const hasChords = Boolean(music.chords && music.chords.trim());
                 const isAddingThis = addingMusicId === music.id;
                 const isLastSelected =
                   (isInSetlist && setlistItem && lastSelectedItemId === setlistItem.id) ||
@@ -727,14 +723,7 @@ export function ConcertLiveSetlist({
                                 if (hasLyrics) {
                                   openPresentation(
                                     isInSetlist ? setlistIndex : undefined,
-                                    isInSetlist ? undefined : music,
-                                    "lyrics"
-                                  );
-                                } else if (hasChords) {
-                                  openPresentation(
-                                    isInSetlist ? setlistIndex : undefined,
-                                    isInSetlist ? undefined : music,
-                                    "chords"
+                                    isInSetlist ? undefined : music
                                   );
                                 }
                               }
@@ -744,7 +733,7 @@ export function ConcertLiveSetlist({
                                 ? "line-through text-zinc-500 hover:text-zinc-300"
                                 : isLastSelected
                                 ? "text-amber-300 hover:text-amber-200"
-                                : hasLyrics || hasChords
+                                : hasLyrics
                                 ? "text-zinc-100 hover:text-emerald-400"
                                 : "text-zinc-200"
                             }`}
@@ -846,8 +835,7 @@ export function ConcertLiveSetlist({
                           onClick={() =>
                             openPresentation(
                               isInSetlist ? setlistIndex : undefined,
-                              isInSetlist ? undefined : music,
-                              "lyrics"
+                              isInSetlist ? undefined : music
                             )
                           }
                           className="rounded-lg bg-emerald-500/15 border border-emerald-500/40 px-2.5 py-1 text-xs font-bold text-emerald-400 hover:bg-emerald-500 hover:text-zinc-950 transition-all active:scale-95 cursor-pointer shrink-0"
@@ -857,24 +845,11 @@ export function ConcertLiveSetlist({
                         </button>
                       ) : null}
 
-                      {/* Cifra Button */}
-                      {hasChords ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            openPresentation(
-                              isInSetlist ? setlistIndex : undefined,
-                              isInSetlist ? undefined : music,
-                              "chords"
-                            )
-                          }
-                          className="rounded-lg bg-amber-500/15 border border-amber-500/40 px-2.5 py-1 text-xs font-bold text-amber-400 hover:bg-amber-500 hover:text-zinc-950 transition-all active:scale-95 cursor-pointer shrink-0 flex items-center gap-1"
-                          title="Ver cifra no palco"
-                        >
-                          <span>🎸</span>
-                          <span className="hidden xs:inline">Cifra</span>
-                        </button>
-                      ) : null}
+                      <CifraClubSearchButton
+                        title={music.title}
+                        artist={music.artist}
+                        variant="compact"
+                      />
 
                       {/* Edit Button */}
                       <button
@@ -946,13 +921,12 @@ export function ConcertLiveSetlist({
                     ? `${item.note} (${music.note})`
                     : item.note || music.note;
                 const hasLyrics = Boolean(music.lyrics && music.lyrics.trim());
-                const hasChords = Boolean(music.chords && music.chords.trim());
                 const isDragging = draggedIndex === index;
                 const isDragOver = dragOverIndex === index;
 
                 const isLastSelected =
                   lastSelectedItemId === item.id ||
-                  (item.music && lastSelectedMusicId === item.music.id);
+                  (item.musicId !== null && lastSelectedMusicId === item.musicId);
 
                 return (
                   <div
@@ -1015,9 +989,7 @@ export function ConcertLiveSetlist({
                             toggleCompleteItem(item.id);
                           } else {
                             if (hasLyrics) {
-                              openPresentation(index, undefined, "lyrics");
-                            } else if (hasChords) {
-                              openPresentation(index, undefined, "chords");
+                              openPresentation(index, undefined);
                             }
                           }
                         }}
@@ -1026,7 +998,7 @@ export function ConcertLiveSetlist({
                             ? "line-through text-zinc-500 hover:text-zinc-300 cursor-pointer"
                             : isLastSelected
                             ? "text-amber-300 hover:text-amber-200 cursor-pointer"
-                            : hasLyrics || hasChords
+                            : hasLyrics
                             ? "text-zinc-100 cursor-pointer hover:text-emerald-400"
                             : "text-zinc-100 cursor-default"
                         }`}
@@ -1095,7 +1067,7 @@ export function ConcertLiveSetlist({
                         </span>
                       )}
 
-                      {/* Actions menu (Letra, Cifra, Editar, Excluir) */}
+                      {/* Actions menu (Letra, Buscar cifra, Editar, Excluir) */}
                       <div className="relative shrink-0">
                         <button
                           type="button"
@@ -1134,26 +1106,20 @@ export function ConcertLiveSetlist({
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setActiveMenuItemId(null);
-                                  openPresentation(index, undefined, "lyrics");
+                                  openPresentation(index, undefined);
                                 }}
                                 className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-emerald-400 hover:bg-zinc-700/70 rounded-xl transition-colors text-left cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                               >
                                 <span className="text-sm">🎤</span>
                                 <span>{hasLyrics ? "Letra" : "Sem letra"}</span>
                               </button>
-                              <button
-                                type="button"
-                                disabled={!hasChords}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveMenuItemId(null);
-                                  openPresentation(index, undefined, "chords");
-                                }}
-                                className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-amber-400 hover:bg-zinc-700/70 rounded-xl transition-colors text-left cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                              >
-                                <span className="text-sm">🎸</span>
-                                <span>{hasChords ? "Cifra" : "Sem cifra"}</span>
-                              </button>
+                              <div className="px-1 py-0.5">
+                                <CifraClubSearchButton
+                                  title={music.title}
+                                  artist={music.artist}
+                                  className="w-full justify-center"
+                                />
+                              </div>
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -1241,7 +1207,6 @@ export function ConcertLiveSetlist({
         <ConcertPresentationMode
           setlist={presentationSetlist}
           initialIndex={presentationIndex}
-          initialMode={activePresentation.mode}
           concertTitle={concert.title}
           existingMusicIds={existingMusicIds}
           onAddToSetlist={async (musicId) => {

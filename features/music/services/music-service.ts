@@ -1,8 +1,6 @@
 import { and, asc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { customerMusics } from "@/db/schema/customer-musics";
-import { musicCatalog } from "@/db/schema/music-catalog";
-import { findOrCreateCatalogEntry } from "./music-catalog-service";
 import type {
   CreateMusicInput,
   Music,
@@ -25,40 +23,53 @@ export class MusicServiceError extends Error {
   }
 }
 
-/**
- * Build a merged Music object from a joined row of customer_musics + music_catalog.
- * Customer-level lyrics/chords take priority (Option B).
- */
-function mergeRow(row: {
-  cm: typeof customerMusics.$inferSelect;
-  mc: typeof musicCatalog.$inferSelect;
-}): Music {
+const UNIQUE_VIOLATION = "23505";
+
+function duplicateMessage(title: string, artist: string): string {
+  return `A música "${title}" do artista "${artist}" já está cadastrada no seu acervo.`;
+}
+
+function toMusic(row: typeof customerMusics.$inferSelect): Music {
   const genresList: MusicGenre[] =
-    row.cm.genres && row.cm.genres.length > 0
-      ? (row.cm.genres as MusicGenre[])
-      : row.cm.genre
-      ? [row.cm.genre]
+    row.genres && row.genres.length > 0
+      ? (row.genres as MusicGenre[])
+      : row.genre
+      ? [row.genre]
       : [];
 
   return {
-    id: row.cm.id,
-    musicCatalogId: row.cm.musicCatalogId,
-    customerId: row.cm.customerId,
-    title: row.mc.title,
-    artist: row.mc.artist,
-    lyrics: row.cm.lyrics ?? row.mc.canonicalLyrics,
-    chords: row.cm.chords ?? row.mc.canonicalChords,
-    originalKey: row.cm.originalKey,
-    preferredKey: row.cm.preferredKey,
-    studying: row.cm.studying,
-    genre: row.cm.genre ?? (genresList[0] || null),
+    id: row.id,
+    customerId: row.customerId,
+    title: row.title,
+    artist: row.artist,
+    lyrics: row.lyrics,
+    chords: row.chords,
+    originalKey: row.originalKey,
+    preferredKey: row.preferredKey,
+    studying: row.studying,
+    genre: row.genre ?? (genresList[0] || null),
     genres: genresList,
-    note: row.cm.note,
-    spotifyLink: row.cm.spotifyLink,
-    sheetMusicFile: row.cm.sheetMusicFile,
-    createdAt: row.cm.createdAt,
-    updatedAt: row.cm.updatedAt,
+    note: row.note,
+    spotifyLink: row.spotifyLink,
+    sheetMusicFile: row.sheetMusicFile,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
   };
+}
+
+async function findDuplicate(customerId: string, title: string, artist: string) {
+  const [existing] = await db
+    .select({ id: customerMusics.id })
+    .from(customerMusics)
+    .where(
+      and(
+        eq(customerMusics.customerId, customerId),
+        sql`lower(${customerMusics.title}) = lower(${title})`,
+        sql`lower(${customerMusics.artist}) = lower(${artist})`
+      )
+    )
+    .limit(1);
+  return existing ?? null;
 }
 
 export async function createMusic(
@@ -67,30 +78,9 @@ export async function createMusic(
 ): Promise<Music> {
   const validated = createMusicSchema.parse(input);
 
-  // 1. Find or create canonical catalog entry
-  const catalogEntry = await findOrCreateCatalogEntry(
-    validated.title,
-    validated.artist,
-    validated.lyrics,
-    validated.chords,
-    validated.isCustom ?? false
-  );
-
-  // 2. Check for duplicate customer music pointing to same catalog entry
-  const [existing] = await db
-    .select()
-    .from(customerMusics)
-    .where(
-      and(
-        eq(customerMusics.customerId, customerId),
-        eq(customerMusics.musicCatalogId, catalogEntry.id)
-      )
-    )
-    .limit(1);
-
-  if (existing) {
+  if (await findDuplicate(customerId, validated.title, validated.artist)) {
     throw new MusicServiceError(
-      `A música "${catalogEntry.title}" do artista "${catalogEntry.artist}" já está cadastrada no seu acervo.`,
+      duplicateMessage(validated.title, validated.artist),
       "DUPLICATE_MUSIC"
     );
   }
@@ -104,26 +94,37 @@ export async function createMusic(
 
   const primaryGenre = genresToSave[0] || validated.genre || null;
 
-  // 3. Insert customer music record
-  const [created] = await db
-    .insert(customerMusics)
-    .values({
-      customerId,
-      musicCatalogId: catalogEntry.id,
-      lyrics: validated.lyrics || null,
-      chords: validated.chords || null,
-      originalKey: validated.originalKey || null,
-      preferredKey: validated.preferredKey || null,
-      studying: validated.studying ?? false,
-      genre: primaryGenre,
-      genres: genresToSave.length > 0 ? genresToSave : null,
-      note: validated.note || null,
-      spotifyLink: validated.spotifyLink || null,
-      sheetMusicFile: validated.sheetMusicFile || null,
-    })
-    .returning();
+  try {
+    const [created] = await db
+      .insert(customerMusics)
+      .values({
+        customerId,
+        title: validated.title,
+        artist: validated.artist,
+        lyrics: validated.lyrics || null,
+        chords: validated.chords || null,
+        originalKey: validated.originalKey || null,
+        preferredKey: validated.preferredKey || null,
+        studying: validated.studying ?? false,
+        genre: primaryGenre,
+        genres: genresToSave.length > 0 ? genresToSave : null,
+        note: validated.note || null,
+        spotifyLink: validated.spotifyLink || null,
+        sheetMusicFile: validated.sheetMusicFile || null,
+      })
+      .returning();
 
-  return mergeRow({ cm: created, mc: catalogEntry });
+    return toMusic(created);
+  } catch (err) {
+    // Concurrent insert of the same song hits the unique index
+    if (typeof err === "object" && err !== null && "code" in err && err.code === UNIQUE_VIOLATION) {
+      throw new MusicServiceError(
+        duplicateMessage(validated.title, validated.artist),
+        "DUPLICATE_MUSIC"
+      );
+    }
+    throw err;
+  }
 }
 
 export async function updateMusic(
@@ -135,7 +136,7 @@ export async function updateMusic(
 
   // Verify ownership
   const [current] = await db
-    .select()
+    .select({ id: customerMusics.id })
     .from(customerMusics)
     .where(and(eq(customerMusics.id, id), eq(customerMusics.customerId, customerId)))
     .limit(1);
@@ -178,14 +179,7 @@ export async function updateMusic(
     .where(and(eq(customerMusics.id, id), eq(customerMusics.customerId, customerId)))
     .returning();
 
-  // Fetch catalog data to merge
-  const [catalog] = await db
-    .select()
-    .from(musicCatalog)
-    .where(eq(musicCatalog.id, updated.musicCatalogId))
-    .limit(1);
-
-  return mergeRow({ cm: updated, mc: catalog });
+  return toMusic(updated);
 }
 
 export async function deleteMusic(
@@ -211,13 +205,9 @@ export async function getMusicById(
   id: string,
   customerId: string
 ): Promise<Music | null> {
-  const rows = await db
-    .select({
-      cm: customerMusics,
-      mc: musicCatalog,
-    })
+  const [row] = await db
+    .select()
     .from(customerMusics)
-    .innerJoin(musicCatalog, eq(customerMusics.musicCatalogId, musicCatalog.id))
     .where(
       and(
         eq(customerMusics.id, id),
@@ -226,9 +216,7 @@ export async function getMusicById(
     )
     .limit(1);
 
-  if (rows.length === 0) return null;
-
-  return mergeRow(rows[0]);
+  return row ? toMusic(row) : null;
 }
 
 export async function listMusics(
@@ -241,8 +229,8 @@ export async function listMusics(
     const term = `%${filters.search.trim()}%`;
     conditions.push(
       or(
-        ilike(musicCatalog.title, term),
-        ilike(musicCatalog.artist, term)
+        ilike(customerMusics.title, term),
+        ilike(customerMusics.artist, term)
       )!
     );
   }
@@ -269,18 +257,14 @@ export async function listMusics(
   }
 
   if (filters?.artist && filters.artist.trim().length > 0) {
-    conditions.push(ilike(musicCatalog.artist, `%${filters.artist.trim()}%`));
+    conditions.push(ilike(customerMusics.artist, `%${filters.artist.trim()}%`));
   }
 
   const rows = await db
-    .select({
-      cm: customerMusics,
-      mc: musicCatalog,
-    })
+    .select()
     .from(customerMusics)
-    .innerJoin(musicCatalog, eq(customerMusics.musicCatalogId, musicCatalog.id))
     .where(and(...conditions))
-    .orderBy(asc(musicCatalog.title));
+    .orderBy(asc(customerMusics.title));
 
-  return rows.map(mergeRow);
+  return rows.map(toMusic);
 }

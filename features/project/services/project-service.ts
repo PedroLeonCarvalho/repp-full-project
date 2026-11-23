@@ -3,7 +3,6 @@ import { db } from "@/db";
 import { projects } from "@/db/schema/projects";
 import { projectMusics } from "@/db/schema/project-musics";
 import { customerMusics } from "@/db/schema/customer-musics";
-import { musicCatalog } from "@/db/schema/music-catalog";
 import { customers } from "@/db/schema/customers";
 import type {
   CreateProjectInput,
@@ -303,13 +302,9 @@ export async function listProjectMusics(
     );
   }
 
-  const rawItems = await db
-    .select({
-      cm: customerMusics,
-      mc: musicCatalog,
-    })
+  const rows = await db
+    .select({ cm: customerMusics })
     .from(customerMusics)
-    .innerJoin(musicCatalog, eq(musicCatalog.id, customerMusics.musicCatalogId))
     .innerJoin(projectMusics, eq(projectMusics.musicId, customerMusics.id))
     .where(
       and(
@@ -317,26 +312,25 @@ export async function listProjectMusics(
         eq(customerMusics.customerId, customerId)
       )
     )
-    .orderBy(musicCatalog.title);
+    .orderBy(customerMusics.title);
 
-  const items = rawItems.map((r) => ({
-    id: r.cm.id,
-    musicCatalogId: r.cm.musicCatalogId,
-    customerId: r.cm.customerId,
-    title: r.mc.title,
-    artist: r.mc.artist,
-    lyrics: r.cm.lyrics ?? r.mc.canonicalLyrics,
-    chords: r.cm.chords ?? r.mc.canonicalChords,
-    originalKey: r.cm.originalKey,
-    preferredKey: r.cm.preferredKey,
-    studying: r.cm.studying,
-    genre: r.cm.genre,
-    genres: (r.cm.genres as MusicGenre[]) ?? (r.cm.genre ? [r.cm.genre as MusicGenre] : null),
-    note: r.cm.note,
-    spotifyLink: r.cm.spotifyLink,
-    sheetMusicFile: r.cm.sheetMusicFile,
-    createdAt: r.cm.createdAt,
-    updatedAt: r.cm.updatedAt,
+  const items = rows.map(({ cm: r }) => ({
+    id: r.id,
+    customerId: r.customerId,
+    title: r.title,
+    artist: r.artist,
+    lyrics: r.lyrics,
+    chords: r.chords,
+    originalKey: r.originalKey,
+    preferredKey: r.preferredKey,
+    studying: r.studying,
+    genre: r.genre,
+    genres: (r.genres as MusicGenre[]) ?? (r.genre ? [r.genre as MusicGenre] : null),
+    note: r.note,
+    spotifyLink: r.spotifyLink,
+    sheetMusicFile: r.sheetMusicFile,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
   }));
 
   return items;

@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { PublicSharedConcert, PublicSharedSetlistItem } from "@/features/concert/types";
 import { LyricsViewer } from "@/features/concert/components/lyrics-viewer";
-import { ChordsViewer } from "@/features/music/components/chords-viewer";
+import { CifraClubSearchButton } from "@/features/music/components/cifraclub-search-button";
 import { formatConcertDate } from "@/lib/date-utils";
 
 interface PublicSharedSetlistViewProps {
@@ -15,13 +15,9 @@ interface PublicSharedSetlistViewProps {
 export function PublicSharedSetlistView({
   concert,
 }: PublicSharedSetlistViewProps) {
-  const [activePresentation, setActivePresentation] = useState<{
-    index: number;
-    mode: "lyrics" | "chords";
-  } | null>(null);
+  const [activePresentation, setActivePresentation] = useState<{ index: number } | null>(null);
   const [lastSelectedItemId, setLastSelectedItemId] = useState<string | null>(null);
   const prevActivePresentationRef = useRef(activePresentation);
-  const [chordsMode, setChordsMode] = useState<"render" | "raw">("render");
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -266,7 +262,6 @@ export function PublicSharedSetlistView({
               {setlist.map((item, index) => {
                 const key = item.music.preferredKey || item.music.originalKey;
                 const hasLyrics = Boolean(item.music.lyrics && item.music.lyrics.trim());
-                const hasChords = Boolean(item.music.chords && item.music.chords.trim());
                 const isLastSelected = lastSelectedItemId === item.id;
 
                 return (
@@ -283,9 +278,7 @@ export function PublicSharedSetlistView({
                       onClick={() => {
                         setLastSelectedItemId(item.id);
                         if (hasLyrics) {
-                          setActivePresentation({ index, mode: "lyrics" });
-                        } else if (hasChords) {
-                          setActivePresentation({ index, mode: "chords" });
+                          setActivePresentation({ index });
                         }
                       }}
                       className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
@@ -358,7 +351,7 @@ export function PublicSharedSetlistView({
                           type="button"
                           onClick={() => {
                             setLastSelectedItemId(item.id);
-                            setActivePresentation({ index, mode: "lyrics" });
+                            setActivePresentation({ index });
                           }}
                           className="rounded-lg bg-emerald-500/15 border border-emerald-500/40 px-2.5 py-1 text-xs font-bold text-emerald-400 hover:bg-emerald-500 hover:text-zinc-950 transition-all active:scale-95 cursor-pointer shrink-0"
                           title="Ver letra"
@@ -371,25 +364,11 @@ export function PublicSharedSetlistView({
                         </span>
                       )}
 
-                      {/* Cifra button */}
-                      {hasChords ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setLastSelectedItemId(item.id);
-                            setActivePresentation({ index, mode: "chords" });
-                          }}
-                          className="rounded-lg bg-amber-500/15 border border-amber-500/40 px-2.5 py-1 text-xs font-bold text-amber-400 hover:bg-amber-500 hover:text-zinc-950 transition-all active:scale-95 cursor-pointer shrink-0 flex items-center gap-1"
-                          title="Ver cifra"
-                        >
-                          <span>🎸</span>
-                          <span>Cifra</span>
-                        </button>
-                      ) : (
-                        <span className="rounded-lg bg-zinc-800/50 border border-zinc-700/30 px-2 py-1 text-[10px] font-medium text-zinc-600 shrink-0 hidden sm:inline">
-                          Sem cifra
-                        </span>
-                      )}
+                      <CifraClubSearchButton
+                        title={item.music.title}
+                        artist={item.music.artist}
+                        variant="compact"
+                      />
                     </div>
                   </div>
                 );
@@ -408,7 +387,7 @@ export function PublicSharedSetlistView({
               if (setlist.length > 0) {
                 setLastSelectedItemId(setlist[0].id);
               }
-              setActivePresentation({ index: 0, mode: "lyrics" });
+              setActivePresentation({ index: 0 });
             }}
             className="flex items-center gap-2.5 rounded-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-5 py-3 text-xs sm:text-sm font-black shadow-2xl shadow-emerald-500/40 active:scale-95 transition-all cursor-pointer"
             title="Iniciar visualizador de palco a partir da 1ª música"
@@ -558,67 +537,17 @@ export function PublicSharedSetlistView({
       {activePresentation !== null && currentMusic && (() => {
         const keyDisplay = currentMusic.preferredKey || currentMusic.originalKey;
         const hasLyrics = Boolean(currentMusic.lyrics && currentMusic.lyrics.trim());
-        const hasChords = Boolean(currentMusic.chords && currentMusic.chords.trim());
-        const mode = activePresentation.mode;
 
         return (
           <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950 text-zinc-50 overflow-hidden select-none animate-in fade-in duration-150">
             {/* Floating Controls at Top Right */}
             <div className="fixed top-3 right-3 z-30 flex items-center gap-2 flex-wrap justify-end">
-              {/* Switcher Letra / Cifra */}
-              <div className="flex items-center rounded-full bg-zinc-900/90 border border-zinc-700/70 p-0.5 backdrop-blur-md shadow-lg">
-                <button
-                  type="button"
-                  onClick={() => setActivePresentation({ ...activePresentation, mode: "lyrics" })}
-                  className={`rounded-full px-3 py-1 text-xs font-bold transition-all cursor-pointer ${
-                    mode === "lyrics"
-                      ? "bg-emerald-500 text-zinc-950 shadow-sm"
-                      : "text-zinc-400 hover:text-zinc-200"
-                  }`}
-                >
-                  Letra
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActivePresentation({ ...activePresentation, mode: "chords" })}
-                  className={`rounded-full px-3 py-1 text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                    mode === "chords"
-                      ? "bg-amber-500 text-zinc-950 shadow-sm"
-                      : "text-zinc-400 hover:text-zinc-200"
-                  }`}
-                >
-                  <span>🎸</span>
-                  <span>Cifra</span>
-                </button>
-              </div>
-
-              {/* Chords Render Toggle */}
-              {mode === "chords" && hasChords && (
-                <div className="hidden sm:flex items-center rounded-full bg-zinc-900/90 border border-zinc-700/70 p-0.5 backdrop-blur-md shadow-lg">
-                  <button
-                    type="button"
-                    onClick={() => setChordsMode("render")}
-                    className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all cursor-pointer ${
-                      chordsMode === "render"
-                        ? "bg-zinc-700 text-zinc-100"
-                        : "text-zinc-400 hover:text-zinc-200"
-                    }`}
-                  >
-                    Formatado
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setChordsMode("raw")}
-                    className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all cursor-pointer ${
-                      chordsMode === "raw"
-                        ? "bg-zinc-700 text-zinc-100"
-                        : "text-zinc-400 hover:text-zinc-200"
-                    }`}
-                  >
-                    Texto
-                  </button>
-                </div>
-              )}
+              <CifraClubSearchButton
+                title={currentMusic.title}
+                artist={currentMusic.artist}
+                variant="compact"
+                className="rounded-full bg-zinc-900/90 py-1 shadow-lg"
+              />
 
               {/* Fullscreen Button */}
               <button
@@ -688,45 +617,12 @@ export function PublicSharedSetlistView({
                 </div>
               )}
 
-              {/* Render Lyrics or Chords based on selected mode */}
-              {mode === "lyrics" ? (
-                hasLyrics ? (
-                  <LyricsViewer lyrics={currentMusic.lyrics || ""} fontSize="large" />
-                ) : (
-                  <div className="py-20 text-center text-zinc-500">
-                    <p className="text-base font-semibold text-zinc-400">Nenhuma letra cadastrada para esta música.</p>
-                    {hasChords && (
-                      <button
-                        type="button"
-                        onClick={() => setActivePresentation({ ...activePresentation, mode: "chords" })}
-                        className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 px-3.5 py-1.5 text-xs font-bold hover:bg-amber-500/30 transition-colors"
-                      >
-                        <span>🎸 Ver Cifra Disponível</span>
-                      </button>
-                    )}
-                  </div>
-                )
+              {hasLyrics ? (
+                <LyricsViewer lyrics={currentMusic.lyrics || ""} fontSize="large" />
               ) : (
-                hasChords ? (
-                  <ChordsViewer
-                    chords={currentMusic.chords || ""}
-                    fontSize="large"
-                    mode={chordsMode}
-                  />
-                ) : (
-                  <div className="py-20 text-center text-zinc-500">
-                    <p className="text-base font-semibold text-zinc-400">Nenhuma cifra cadastrada para esta música.</p>
-                    {hasLyrics && (
-                      <button
-                        type="button"
-                        onClick={() => setActivePresentation({ ...activePresentation, mode: "lyrics" })}
-                        className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-3.5 py-1.5 text-xs font-bold hover:bg-emerald-500/30 transition-colors"
-                      >
-                        <span>📝 Ver Letra Disponível</span>
-                      </button>
-                    )}
-                  </div>
-                )
+                <div className="py-20 text-center text-zinc-500">
+                  <p className="text-base font-semibold text-zinc-400">Nenhuma letra cadastrada para esta música.</p>
+                </div>
               )}
             </main>
 

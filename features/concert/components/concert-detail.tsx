@@ -1,5 +1,6 @@
 "use client";
 
+import { CifraClubSearchButton } from "@/features/music/components/cifraclub-search-button";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import type { ConcertWithSetlist } from "../types";
 import {
@@ -41,10 +42,7 @@ export function ConcertDetail({
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [editingMusic, setEditingMusic] = useState<Music | null>(null);
-  const [presentationState, setPresentationState] = useState<{
-    index: number;
-    mode: "lyrics" | "chords";
-  } | null>(null);
+  const [presentationState, setPresentationState] = useState<{ index: number } | null>(null);
   const [lastSelectedItemId, setLastSelectedItemId] = useState<string | null>(null);
   const prevPresentationStateRef = useRef(presentationState);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
@@ -188,7 +186,9 @@ export function ConcertDetail({
 
 
 
-  const existingMusicIds = new Set(concert.setlist.map((s) => s.musicId));
+  const existingMusicIds = new Set(
+    concert.setlist.flatMap((s) => (s.musicId ? [s.musicId] : []))
+  );
 
   const formattedDate = formatConcertDate(concert.presentationDate);  return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -343,7 +343,7 @@ export function ConcertDetail({
                       if (concert.setlist.length > 0) {
                         setLastSelectedItemId(concert.setlist[0].id);
                       }
-                      setPresentationState({ index: 0, mode: "lyrics" });
+                      setPresentationState({ index: 0 });
                     }
                   }}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-1.5 text-xs font-bold text-zinc-950 hover:bg-emerald-400 transition-all shadow-md shadow-emerald-500/10 active:scale-95 cursor-pointer"
@@ -421,7 +421,7 @@ export function ConcertDetail({
                       <div
                         onClick={() => {
                           setLastSelectedItemId(item.id);
-                          setPresentationState({ index, mode: "lyrics" });
+                          setPresentationState({ index });
                         }}
                         className="min-w-0 flex-1 cursor-pointer"
                         title={`Clique para abrir letra: ${music.title}`}
@@ -515,7 +515,7 @@ export function ConcertDetail({
                                 e.stopPropagation();
                                 setActiveMenuId(null);
                                 setLastSelectedItemId(item.id);
-                                setPresentationState({ index, mode: "lyrics" });
+                                setPresentationState({ index });
                               }}
                               className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-emerald-400 hover:bg-zinc-700/70 rounded-xl transition-colors text-left cursor-pointer"
                             >
@@ -523,19 +523,13 @@ export function ConcertDetail({
                               <span>Ver Letra</span>
                             </button>
 
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActiveMenuId(null);
-                                setLastSelectedItemId(item.id);
-                                setPresentationState({ index, mode: "chords" });
-                              }}
-                              className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-amber-400 hover:bg-zinc-700/70 rounded-xl transition-colors text-left cursor-pointer"
-                            >
-                              <span className="text-sm">🎸</span>
-                              <span>Ver Cifra</span>
-                            </button>
+                            <div className="px-1 py-0.5">
+                              <CifraClubSearchButton
+                                title={music.title}
+                                artist={music.artist}
+                                className="w-full justify-center"
+                              />
+                            </div>
 
                             <button
                               type="button"
@@ -695,7 +689,6 @@ export function ConcertDetail({
         <ConcertPresentationMode
           setlist={concert.setlist}
           initialIndex={presentationState.index}
-          initialMode={presentationState.mode}
           concertTitle={concert.title}
           onRemoveFromSetlist={async (itemId) => {
             await handleRemoveItem(itemId);

@@ -3,32 +3,14 @@ import type { MUSICAL_KEYS, MUSIC_GENRES } from "@/db/schema/enums";
 export type MusicalKey = (typeof MUSICAL_KEYS)[number];
 export type MusicGenre = (typeof MUSIC_GENRES)[number];
 
-// Catalog entry returned by autocomplete search
-export interface MusicCatalogEntry {
-  id: string;
-  title: string;
-  artist: string;
-  isCustom?: boolean;
-}
-
-// Full catalog entry with content fields (matches DB row)
-export interface MusicCatalogFull extends MusicCatalogEntry {
-  canonicalLyrics: string | null;
-  canonicalChords: string | null;
-  isCustom: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// Merged view of customer_musics + music_catalog (the main app entity)
+// A song in the customer's library (customer_musics)
 export interface Music {
   id: string;               // customer_musics.id
-  musicCatalogId: string;
   customerId: string;
-  title: string;            // from music_catalog
-  artist: string;           // from music_catalog
-  lyrics: string | null;    // COALESCE(customer override, catalog value)
-  chords: string | null;    // COALESCE(customer override, catalog value)
+  title: string;
+  artist: string;
+  lyrics: string | null;
+  chords: string | null;
   originalKey: MusicalKey | null;
   preferredKey: MusicalKey | null;
   studying: boolean;
@@ -41,7 +23,7 @@ export interface Music {
   updatedAt: Date;
 }
 
-// Input for creating a new customer music (title+artist used for catalog lookup/upsert)
+// Input for creating a new library song
 export interface CreateMusicInput {
   title: string;
   artist: string;
@@ -55,7 +37,6 @@ export interface CreateMusicInput {
   note?: string | null;
   spotifyLink?: string | null;
   sheetMusicFile?: string | null;
-  isCustom?: boolean;
 }
 
 // Update input: title and artist are immutable after creation
@@ -95,31 +76,6 @@ export interface LyricsSearchResult {
 export interface SearchLyricsInput {
   title: string;
   artist?: string;
-}
-
-/** Raw response from the REPP CifraClub API */
-export interface ReppCifraClubApiResponse {
-  artist: string;
-  name: string;
-  cifraclub_url: string;
-  key: string | null;
-  cifra: string[];
-}
-
-/** Normalized chord search result returned to the form after ChordPro conversion */
-export interface ChordSearchResult {
-  title: string;
-  artist: string;
-  key: string | null;
-  chordpro: string;
-}
-
-/** Suggestion item returned by the real-time chord autocomplete search */
-export interface ChordSuggestion {
-  title: string;
-  artist: string;
-  songSlug: string;
-  artistSlug: string;
 }
 
 

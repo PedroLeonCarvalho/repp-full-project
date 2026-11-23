@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { SetlistItem } from "../types";
 import { LyricsViewer } from "./lyrics-viewer";
-import { ChordsViewer } from "@/features/music/components/chords-viewer";
+import { CifraClubSearchButton } from "@/features/music/components/cifraclub-search-button";
 import type { Music } from "@/features/music/types";
 import { MusicForm } from "@/features/music/components/music-form";
 import { updateMusicAction } from "@/features/music/actions/music-actions";
@@ -11,7 +11,6 @@ import { updateMusicAction } from "@/features/music/actions/music-actions";
 interface ConcertPresentationModeProps {
   setlist: SetlistItem[];
   initialIndex?: number;
-  initialMode?: "lyrics" | "chords";
   concertTitle?: string;
   onClose: (lastIndex?: number) => void;
   onComplete?: (itemId: string) => void;
@@ -33,7 +32,6 @@ const FONT_SIZE_LABELS: Record<LyricsFontSize, string> = {
 export function ConcertPresentationMode({
   setlist,
   initialIndex = 0,
-  initialMode = "lyrics",
   concertTitle,
   onClose,
   onComplete,
@@ -42,8 +40,6 @@ export function ConcertPresentationMode({
   existingMusicIds,
 }: ConcertPresentationModeProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const [viewMode, setViewMode] = useState<"lyrics" | "chords">(initialMode);
-  const [chordsMode, setChordsMode] = useState<"render" | "raw">("render");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [editingMusic, setEditingMusic] = useState<Music | null>(null);
   const [isAddingToSetlist, setIsAddingToSetlist] = useState(false);
@@ -222,7 +218,6 @@ export function ConcertPresentationMode({
 
   const keyDisplay = music.preferredKey || music.originalKey;
   const hasLyrics = Boolean(music.lyrics && music.lyrics.trim());
-  const hasChords = Boolean(music.chords && music.chords.trim());
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black text-zinc-50 overflow-hidden select-none">
@@ -235,70 +230,22 @@ export function ConcertPresentationMode({
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1 rounded-full bg-zinc-900/90 border border-zinc-700/70 px-3 py-1 text-xs font-bold text-emerald-400 hover:text-emerald-300 hover:bg-zinc-800 transition-colors shadow-lg cursor-pointer"
-            title="Abrir partitura/cifra em PDF em uma nova aba"
+            title="Abrir partitura em PDF em uma nova aba"
           >
             <span>📄</span>
             <span className="hidden sm:inline">PDF</span>
           </a>
         )}
 
-        {/* View Mode Switcher: Letra / Cifra */}
-        <div className="flex items-center rounded-full bg-zinc-900/90 border border-zinc-700/70 p-0.5 backdrop-blur-md shadow-lg">
-          <button
-            type="button"
-            onClick={() => setViewMode("lyrics")}
-            className={`rounded-full px-3 py-1 text-xs font-bold transition-all cursor-pointer ${
-              viewMode === "lyrics"
-                ? "bg-emerald-500 text-zinc-950 shadow-sm"
-                : "text-zinc-400 hover:text-zinc-200"
-            }`}
-          >
-            Letra
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("chords")}
-            className={`rounded-full px-3 py-1 text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-              viewMode === "chords"
-                ? "bg-amber-500 text-zinc-950 shadow-sm"
-                : "text-zinc-400 hover:text-zinc-200"
-            }`}
-          >
-            <span>🎸</span>
-            <span>Cifra</span>
-          </button>
-        </div>
-
-        {/* Chords Render Mode Toggle (Only visible in chords mode) */}
-        {viewMode === "chords" && hasChords && (
-          <div className="hidden sm:flex items-center rounded-full bg-zinc-900/90 border border-zinc-700/70 p-0.5 backdrop-blur-md shadow-lg">
-            <button
-              type="button"
-              onClick={() => setChordsMode("render")}
-              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all cursor-pointer ${
-                chordsMode === "render"
-                  ? "bg-zinc-700 text-zinc-100"
-                  : "text-zinc-400 hover:text-zinc-200"
-              }`}
-            >
-              Formatado
-            </button>
-            <button
-              type="button"
-              onClick={() => setChordsMode("raw")}
-              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all cursor-pointer ${
-                chordsMode === "raw"
-                  ? "bg-zinc-700 text-zinc-100"
-                  : "text-zinc-400 hover:text-zinc-200"
-              }`}
-            >
-              Texto
-            </button>
-          </div>
-        )}
+        <CifraClubSearchButton
+          title={music.title}
+          artist={music.artist}
+          variant="compact"
+          className="rounded-full bg-zinc-900/90 py-1 shadow-lg"
+        />
 
         {/* Font Size Adjuster for Lyrics (A- / A+) */}
-        {viewMode === "lyrics" && hasLyrics && (
+        {hasLyrics && (
           <div className="flex items-center rounded-full bg-zinc-900/90 border border-zinc-700/70 p-0.5 backdrop-blur-md shadow-lg">
             <button
               type="button"
@@ -401,7 +348,7 @@ export function ConcertPresentationMode({
                 type="button"
                 onClick={() => setEditingMusic(music)}
                 className="rounded-lg bg-zinc-800/90 border border-zinc-700/80 px-2 py-0.5 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-700 transition-all cursor-pointer inline-flex items-center gap-1 shrink-0"
-                title="Editar dados da música (letra, cifra, tom, observação)"
+                title="Editar dados da música (letra, tom, observação)"
               >
                 <span>✏️</span>
                 <span className="hidden xs:inline">Editar Música</span>
@@ -459,45 +406,12 @@ export function ConcertPresentationMode({
           </div>
         )}
 
-        {/* Mode Content: Lyrics or Chords */}
-        {viewMode === "lyrics" ? (
-          hasLyrics ? (
-            <LyricsViewer lyrics={music.lyrics || ""} fontSize={lyricsFontSize} />
-          ) : (
-            <div className="py-20 text-center text-zinc-500">
-              <p className="text-base font-semibold text-zinc-400">Nenhuma letra cadastrada para esta música.</p>
-              {hasChords && (
-                <button
-                  type="button"
-                  onClick={() => setViewMode("chords")}
-                  className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 px-3.5 py-1.5 text-xs font-bold hover:bg-amber-500/30 transition-colors"
-                >
-                  <span>🎸 Ver Cifra Disponível</span>
-                </button>
-              )}
-            </div>
-          )
+        {hasLyrics ? (
+          <LyricsViewer lyrics={music.lyrics || ""} fontSize={lyricsFontSize} />
         ) : (
-          hasChords ? (
-            <ChordsViewer
-              chords={music.chords || ""}
-              fontSize="large"
-              mode={chordsMode}
-            />
-          ) : (
-            <div className="py-20 text-center text-zinc-500">
-              <p className="text-base font-semibold text-zinc-400">Nenhuma cifra cadastrada para esta música.</p>
-              {hasLyrics && (
-                <button
-                  type="button"
-                  onClick={() => setViewMode("lyrics")}
-                  className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-3.5 py-1.5 text-xs font-bold hover:bg-emerald-500/30 transition-colors"
-                >
-                  <span>📝 Ver Letra Disponível</span>
-                </button>
-              )}
-            </div>
-          )
+          <div className="py-20 text-center text-zinc-500">
+            <p className="text-base font-semibold text-zinc-400">Nenhuma letra cadastrada para esta música.</p>
+          </div>
         )}
       </main>
 
