@@ -471,7 +471,7 @@ export function ConcertDetail({
                               className="inline-block h-2 w-2 rounded-full bg-emerald-500 shrink-0"
                             />
                           )}
-                          {item.isConcluded && (
+                          {item.isConcluded ? (
                             <span
                               className="rounded-md bg-emerald-500/15 border border-emerald-500/40 px-1.5 py-0.5 text-[10px] font-bold text-emerald-400 shrink-0 inline-flex items-center gap-1"
                               title="Música concluída neste show"
@@ -479,6 +479,18 @@ export function ConcertDetail({
                               <span>✓</span>
                               <span>Concluída</span>
                             </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void handleToggleConcluded(item.id, true);
+                              }}
+                              className="rounded-md bg-zinc-800/90 border border-emerald-600/60 px-2 py-0.5 text-[10px] font-bold text-emerald-400 hover:bg-emerald-500/15 transition-colors shrink-0 cursor-pointer"
+                              title="Marcar esta música como concluída neste show"
+                            >
+                              Concluir
+                            </button>
                           )}
                           {isLastSelected && (
                             <span
@@ -594,7 +606,7 @@ export function ConcertDetail({
                               aria-pressed={item.isConcluded}
                             >
                               <span className="text-sm">{item.isConcluded ? "☑️" : "⬜"}</span>
-                              <span>Concluída</span>
+                              <span>{item.isConcluded ? "Desfazer conclusão" : "Concluir"}</span>
                             </button>
 
                             <div className="h-px bg-zinc-700/60 my-0.5" />
