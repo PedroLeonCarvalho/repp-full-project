@@ -33,6 +33,7 @@ export interface SetlistItem {
   musicId: string | null;     // library song it was copied from (customer_musics.id)
   position: number;
   note: string | null;
+  isConcluded: boolean;
   createdAt: Date;
   music?: Music;
 }

@@ -34,6 +34,7 @@ export function MusicDetail({
             musicId: music.id,
             position: 1,
             note: music.note,
+            isConcluded: false,
             createdAt: new Date(),
             music: {
               ...music,

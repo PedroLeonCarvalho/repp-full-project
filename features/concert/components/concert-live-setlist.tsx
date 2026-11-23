@@ -427,6 +427,7 @@ export function ConcertLiveSetlist({
           musicId: customMusic.id,
           position: setlist.length + 1,
           note: null,
+          isConcluded: false,
           createdAt: new Date(),
           music: customMusic,
         };

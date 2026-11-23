@@ -8,6 +8,7 @@ import {
   getConcertByIdAction,
   removeSetlistItemAction,
   reorderSetlistAction,
+  setSetlistItemConcludedAction,
 } from "../actions/concert-actions";
 import { getCustomerStageNameAction } from "@/features/contractor/actions/contractor-actions";
 import { AddToSetlistModal } from "./add-to-setlist-modal";
@@ -106,6 +107,28 @@ export function ConcertDetail({
 
   const handleRemoveItem = async (itemId: string) => {
     await removeSetlistItemAction(concertId, itemId);
+    startTransition(() => {
+      void refreshConcert();
+    });
+  };
+
+  const handleToggleConcluded = async (itemId: string, isConcluded: boolean) => {
+    if (!concert) return;
+    setActiveMenuId(null);
+
+    // Optimistic update
+    setConcert({
+      ...concert,
+      setlist: concert.setlist.map((it) =>
+        it.id === itemId ? { ...it, isConcluded } : it
+      ),
+    });
+
+    const res = await setSetlistItemConcludedAction(concertId, itemId, isConcluded);
+    // Reload on success too, so the state always matches the server
+    if (!res.success) {
+      window.alert(res.error);
+    }
     startTransition(() => {
       void refreshConcert();
     });
@@ -448,6 +471,15 @@ export function ConcertDetail({
                               className="inline-block h-2 w-2 rounded-full bg-emerald-500 shrink-0"
                             />
                           )}
+                          {item.isConcluded && (
+                            <span
+                              className="rounded-md bg-emerald-500/15 border border-emerald-500/40 px-1.5 py-0.5 text-[10px] font-bold text-emerald-400 shrink-0 inline-flex items-center gap-1"
+                              title="Música concluída neste show"
+                            >
+                              <span>✓</span>
+                              <span>Concluída</span>
+                            </span>
+                          )}
                           {isLastSelected && (
                             <span
                               className="rounded-md bg-amber-500/20 border border-amber-400/60 px-2 py-0.5 text-[10px] font-black text-amber-300 uppercase tracking-wider flex items-center gap-1 shrink-0 animate-pulse"
@@ -477,6 +509,12 @@ export function ConcertDetail({
                         </span>
                       </div>
                     </div>
+
+                    <CifraClubSearchButton
+                      title={music.title}
+                      artist={music.artist}
+                      variant="compact"
+                    />
 
                     {/* Actions per track: 3-Dots Action Menu (Universal for mobile and desktop) */}
                     <div className="relative shrink-0">
@@ -542,6 +580,21 @@ export function ConcertDetail({
                             >
                               <span className="text-sm">✏️</span>
                               <span>Editar Música</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void handleToggleConcluded(item.id, !item.isConcluded);
+                              }}
+                              className={`flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold hover:bg-zinc-700/70 rounded-xl transition-colors text-left cursor-pointer ${
+                                item.isConcluded ? "text-emerald-400" : "text-zinc-200"
+                              }`}
+                              aria-pressed={item.isConcluded}
+                            >
+                              <span className="text-sm">{item.isConcluded ? "☑️" : "⬜"}</span>
+                              <span>Concluída</span>
                             </button>
 
                             <div className="h-px bg-zinc-700/60 my-0.5" />

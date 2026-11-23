@@ -15,6 +15,7 @@ import {
   listAllConcerts,
   removeSetlistItem,
   reorderSetlist,
+  setSetlistItemConcluded,
   updateConcert,
   ConcertServiceError,
 } from "../services/concert-service";
@@ -189,6 +190,24 @@ export async function removeSetlistItemAction(
       return { success: false, error: err.message };
     }
     return { success: false, error: "Erro inesperado ao remover música do setlist." };
+  }
+}
+
+export async function setSetlistItemConcludedAction(
+  concertId: string,
+  setlistItemId: string,
+  isConcluded: boolean
+): Promise<ActionResult<{ success: true }>> {
+  try {
+    const customerId = await requireAuthCustomerId();
+    const result = await setSetlistItemConcluded(concertId, setlistItemId, isConcluded, customerId);
+    revalidatePath("/");
+    return { success: true, data: result };
+  } catch (err) {
+    if (err instanceof Error) {
+      return { success: false, error: err.message };
+    }
+    return { success: false, error: "Erro inesperado ao atualizar a música." };
   }
 }
 

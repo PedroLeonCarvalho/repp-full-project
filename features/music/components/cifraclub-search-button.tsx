@@ -33,9 +33,8 @@ export function CifraClubSearchButton({
     >
       <span aria-hidden="true">🎸</span>
       <span className={variant === "compact" ? "hidden xs:inline" : ""}>
-        Buscar no Cifra Club
+        Buscar no Cifra Club®
       </span>
-      <span aria-hidden="true">↗</span>
     </a>
   );
 }

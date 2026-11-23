@@ -30,6 +30,8 @@ export const setlistMusic = pgTable(
     originalKey: musicalKeyEnum("original_key"),
     preferredKey: musicalKeyEnum("preferred_key"),
     studying: boolean("studying").notNull().default(false),
+    // Marked as "concluded" by the user for this concert only
+    isConcluded: boolean("is_concluded").notNull().default(false),
     genre: musicGenreEnum("genre"),
     genres: text("genres").array(),
     spotifyLink: text("spotify_link"),

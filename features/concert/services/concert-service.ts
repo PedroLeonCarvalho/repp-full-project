@@ -325,6 +325,7 @@ export async function getConcertById(
     musicId: r.sourceCustomerMusicId,
     position: r.position,
     note: r.note,
+    isConcluded: r.isConcluded,
     createdAt: r.createdAt,
     music: setlistRowToMusic(r, concert.concert.customerId),
   }));
@@ -655,6 +656,31 @@ export async function reorderSetlist(
           eq(setlistMusic.concertId, concertId)
         )
       );
+  }
+
+  return { success: true };
+}
+
+/**
+ * Marks or unmarks a song of this concert's setlist as concluded by the user.
+ * Only affects this concert's copy, not the library song.
+ */
+export async function setSetlistItemConcluded(
+  concertId: string,
+  setlistItemId: string,
+  isConcluded: boolean,
+  customerId: string
+): Promise<{ success: true }> {
+  await assertCanEditConcert(concertId, customerId);
+
+  const updated = await db
+    .update(setlistMusic)
+    .set({ isConcluded })
+    .where(and(eq(setlistMusic.id, setlistItemId), eq(setlistMusic.concertId, concertId)))
+    .returning({ id: setlistMusic.id });
+
+  if (updated.length === 0) {
+    throw new ConcertServiceError("Música não encontrada no setlist deste show.", "NOT_FOUND");
   }
 
   return { success: true };
