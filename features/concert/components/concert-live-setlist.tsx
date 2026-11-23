@@ -784,15 +784,6 @@ export function ConcertLiveSetlist({
                             />
                           )}
 
-                          {isLastSelected && !isCompleted && (
-                            <span
-                              className="rounded-md bg-amber-500/20 border border-amber-400/60 px-2 py-0.5 text-[10px] font-black text-amber-300 uppercase tracking-wider flex items-center gap-1 shrink-0 animate-pulse"
-                              title="Última música exibida no palco"
-                            >
-                              <span>👁</span>
-                              <span>Última Exibida</span>
-                            </span>
-                          )}
                           {isLastSelected && isCompleted && (
                             <span
                               className="rounded-md bg-emerald-950/80 border border-emerald-500/60 px-2 py-0.5 text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1 shrink-0"
@@ -1051,15 +1042,6 @@ export function ConcertLiveSetlist({
                         />
                       )}
 
-                      {isLastSelected && !isCompleted && (
-                        <span
-                          className="rounded-md bg-amber-500/20 border border-amber-400/60 px-2 py-0.5 text-[10px] font-black text-amber-300 uppercase tracking-wider flex items-center gap-1 shrink-0 animate-pulse"
-                          title="Última música exibida no palco"
-                        >
-                          <span>👁</span>
-                          <span>Última Exibida</span>
-                        </span>
-                      )}
                       {isLastSelected && isCompleted && (
                         <span
                           className="rounded-md bg-emerald-950/80 border border-emerald-500/60 px-2 py-0.5 text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1 shrink-0"
