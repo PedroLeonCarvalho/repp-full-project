@@ -8,6 +8,7 @@ import {
   getConcertByIdAction,
   removeSetlistItemAction,
   reorderSetlistAction,
+  setSetlistItemConcludedAction,
 } from "../actions/concert-actions";
 import { AddToSetlistModal } from "./add-to-setlist-modal";
 import { ConcertPresentationMode } from "./concert-presentation-mode";
@@ -40,7 +41,6 @@ export function ConcertLiveSetlist({
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [completedItemIds, setCompletedItemIds] = useState<Set<string>>(new Set());
   const [editingMusic, setEditingMusic] = useState<Music | null>(null);
   const [addingMusicId, setAddingMusicId] = useState<string | null>(null);
   const [removingItemId, setRemovingItemId] = useState<string | null>(null);
@@ -49,16 +49,28 @@ export function ConcertLiveSetlist({
   const [activeMenuItemId, setActiveMenuItemId] = useState<string | null>(null);
   const prevActivePresentationRef = useRef(activePresentation);
 
-  const toggleCompleteItem = (itemId: string) => {
-    setCompletedItemIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(itemId)) {
-        next.delete(itemId);
-      } else {
-        next.add(itemId);
-      }
-      return next;
+  // Saves the "concluded" flag for this song in this concert
+  const setItemConcluded = async (itemId: string, isConcluded: boolean) => {
+    if (!concert) return;
+    setConcert({
+      ...concert,
+      setlist: concert.setlist.map((it) =>
+        it.id === itemId ? { ...it, isConcluded } : it
+      ),
     });
+    const res = await setSetlistItemConcludedAction(concertId, itemId, isConcluded);
+    if (!res.success) {
+      window.alert(res.error);
+    }
+    const refreshed = await getConcertByIdAction(concertId);
+    if (refreshed.success && refreshed.data) {
+      setConcert(refreshed.data);
+    }
+  };
+
+  const toggleCompleteItem = (itemId: string) => {
+    const current = concert?.setlist.find((it) => it.id === itemId);
+    void setItemConcluded(itemId, !current?.isConcluded);
   };
 
   // Live real-time clock ticking every second
@@ -662,9 +674,7 @@ export function ConcertLiveSetlist({
                 const setlistItem = setlist.find((it) => it.musicId === music.id);
                 const isInSetlist = Boolean(setlistItem);
                 const setlistIndex = isInSetlist ? setlist.indexOf(setlistItem!) : -1;
-                const isCompleted = setlistItem
-                  ? completedItemIds.has(setlistItem.id)
-                  : false;
+                const isCompleted = setlistItem ? setlistItem.isConcluded : false;
                 const keyDisplay = music.preferredKey || music.originalKey;
                 const noteText =
                   setlistItem?.note && music.note
@@ -915,7 +925,7 @@ export function ConcertLiveSetlist({
               {setlist.map((item, index) => {
                 const music = item.music;
                 if (!music) return null;
-                const isCompleted = completedItemIds.has(item.id);
+                const isCompleted = item.isConcluded;
                 const keyDisplay = music.preferredKey || music.originalKey;
                 const noteText =
                   item.note && music.note
@@ -1011,6 +1021,20 @@ export function ConcertLiveSetlist({
                       >
                         {music.title}
                       </span>
+
+                      {!isCompleted && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void setItemConcluded(item.id, true);
+                          }}
+                          className="rounded-md bg-zinc-800/90 border border-emerald-600/60 px-2 py-0.5 text-[11px] font-bold text-emerald-400 hover:bg-emerald-500/15 transition-colors shrink-0 cursor-pointer"
+                          title="Marcar esta música como concluída neste show"
+                        >
+                          Concluir
+                        </button>
+                      )}
 
                       {/* Study Status Bullet */}
                       {music.studying ? (
@@ -1126,6 +1150,20 @@ export function ConcertLiveSetlist({
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setActiveMenuItemId(null);
+                                  void setItemConcluded(item.id, !item.isConcluded);
+                                }}
+                                className={`flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold hover:bg-zinc-700/70 rounded-xl transition-colors text-left cursor-pointer ${
+                                  item.isConcluded ? "text-emerald-400" : "text-zinc-200"
+                                }`}
+                              >
+                                <span className="text-sm">{item.isConcluded ? "☑️" : "⬜"}</span>
+                                <span>{item.isConcluded ? "Desfazer conclusão" : "Concluir"}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveMenuItemId(null);
                                   setEditingMusic(music);
                                 }}
                                 className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-700/70 rounded-xl transition-colors text-left cursor-pointer"
@@ -1229,7 +1267,7 @@ export function ConcertLiveSetlist({
             setActivePresentation(null);
           }}
           onComplete={(itemId) => {
-            setCompletedItemIds((prev) => new Set(prev).add(itemId));
+            void setItemConcluded(itemId, true);
           }}
         />
       )}
