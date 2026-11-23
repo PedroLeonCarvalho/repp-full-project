@@ -49,6 +49,21 @@ export function ConcertLiveSetlist({
   const [activeMenuItemId, setActiveMenuItemId] = useState<string | null>(null);
   const prevActivePresentationRef = useRef(activePresentation);
 
+  // Double tap (or double click) on a row marks it as concluded.
+  // Taps on buttons/links are ignored so their own actions still work.
+  const lastRowTapRef = useRef<{ id: string; time: number } | null>(null);
+  const handleRowTap = (itemId: string, isCompleted: boolean, e: React.MouseEvent) => {
+    if ((e.target as Element).closest("button, a, input, textarea, select")) return;
+    const now = e.timeStamp;
+    const last = lastRowTapRef.current;
+    if (last && last.id === itemId && now - last.time < 350) {
+      lastRowTapRef.current = null;
+      if (!isCompleted) void setItemConcluded(itemId, true);
+      return;
+    }
+    lastRowTapRef.current = { id: itemId, time: now };
+  };
+
   // Saves the "concluded" flag for this song in this concert
   const setItemConcluded = async (itemId: string, isConcluded: boolean) => {
     if (!concert) return;
@@ -944,6 +959,7 @@ export function ConcertLiveSetlist({
                     key={item.id}
                     id={`setlist-item-${item.id}`}
                     data-setlist-index={index}
+                    onClick={(e) => handleRowTap(item.id, isCompleted, e)}
                     draggable={true}
                     onDragStart={(e) => handleDragStart(e, index)}
                     onDragOver={(e) => handleDragOver(e, index)}
@@ -1021,20 +1037,6 @@ export function ConcertLiveSetlist({
                       >
                         {music.title}
                       </span>
-
-                      {!isCompleted && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            void setItemConcluded(item.id, true);
-                          }}
-                          className="rounded-md bg-zinc-800/90 border border-emerald-600/60 px-2 py-0.5 text-[11px] font-bold text-emerald-400 hover:bg-emerald-500/15 transition-colors shrink-0 cursor-pointer"
-                          title="Marcar esta música como concluída neste show"
-                        >
-                          Concluir
-                        </button>
-                      )}
 
                       {/* Study Status Bullet */}
                       {music.studying ? (
