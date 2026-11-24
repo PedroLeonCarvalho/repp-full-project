@@ -20,6 +20,7 @@ import { formatConcertDate } from "@/lib/date-utils";
 import type { Music } from "@/features/music/types";
 import { MusicForm } from "@/features/music/components/music-form";
 import { updateMusicAction } from "@/features/music/actions/music-actions";
+import { updateSetlistMusicAction } from "../actions/concert-actions";
 
 interface ConcertDetailProps {
   concertId: string;
@@ -741,7 +742,10 @@ export function ConcertDetail({
         onClose={() => setEditingMusic(null)}
         onSubmit={async (data) => {
           if (!editingMusic) return { success: false, error: "Música não encontrada." };
-          const res = await updateMusicAction(editingMusic.id, data);
+          const isSetlistItem = concert.setlist.some((item) => item.id === editingMusic.id);
+          const res = isSetlistItem
+            ? await updateSetlistMusicAction(concertId, editingMusic.id, data)
+            : await updateMusicAction(editingMusic.id, data);
           if (res.success) {
             void refreshConcert();
           }
@@ -754,6 +758,7 @@ export function ConcertDetail({
         <ConcertPresentationMode
           setlist={concert.setlist}
           initialIndex={presentationState.index}
+          concertId={concertId}
           concertTitle={concert.title}
           onRemoveFromSetlist={async (itemId) => {
             await handleRemoveItem(itemId);

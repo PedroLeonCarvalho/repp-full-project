@@ -15,7 +15,9 @@ import type {
   PublicSharedConcert,
   UpdateConcertInput,
 } from "../types";
-import type { Music, MusicGenre } from "@/features/music/types";
+import type { Music, MusicGenre, UpdateMusicInput } from "@/features/music/types";
+import { buildPersonalMusicUpdate } from "@/features/music/services/music-service";
+import { updateMusicSchema } from "@/features/music/schemas/music-schema";
 import {
   createConcertSchema,
   updateConcertSchema,
@@ -684,6 +686,34 @@ export async function setSetlistItemConcluded(
   }
 
   return { success: true };
+}
+
+/**
+ * Edits a song's personal fields inside one concert's setlist only.
+ * Does not touch the library song (customer_musics), so the library and other
+ * concerts are unaffected. title/artist remain immutable, as in the library.
+ */
+export async function updateSetlistMusic(
+  concertId: string,
+  setlistItemId: string,
+  input: Omit<UpdateMusicInput, "id">,
+  customerId: string
+): Promise<Music> {
+  await assertCanEditConcert(concertId, customerId);
+
+  const validated = updateMusicSchema.parse({ ...input, id: setlistItemId });
+
+  const [updated] = await db
+    .update(setlistMusic)
+    .set(buildPersonalMusicUpdate(validated))
+    .where(and(eq(setlistMusic.id, setlistItemId), eq(setlistMusic.concertId, concertId)))
+    .returning();
+
+  if (!updated) {
+    throw new ConcertServiceError("Música não encontrada no setlist deste show.", "NOT_FOUND");
+  }
+
+  return setlistRowToMusic(updated, customerId);
 }
 
 /**

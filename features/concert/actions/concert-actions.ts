@@ -17,6 +17,7 @@ import {
   reorderSetlist,
   setSetlistItemConcluded,
   updateConcert,
+  updateSetlistMusic,
   ConcertServiceError,
 } from "../services/concert-service";
 import type {
@@ -26,6 +27,7 @@ import type {
   PublicSharedConcert,
   UpdateConcertInput,
 } from "../types";
+import type { Music, UpdateMusicInput } from "@/features/music/types";
 
 export type ActionResult<T> =
   | { success: true; data: T }
@@ -208,6 +210,27 @@ export async function setSetlistItemConcludedAction(
       return { success: false, error: err.message };
     }
     return { success: false, error: "Erro inesperado ao atualizar a música." };
+  }
+}
+
+export async function updateSetlistMusicAction(
+  concertId: string,
+  setlistItemId: string,
+  input: Omit<UpdateMusicInput, "id">
+): Promise<ActionResult<Music>> {
+  try {
+    const customerId = await requireAuthCustomerId();
+    const updated = await updateSetlistMusic(concertId, setlistItemId, input, customerId);
+    revalidatePath("/");
+    return { success: true, data: updated };
+  } catch (err) {
+    if (err instanceof ConcertServiceError) {
+      return { success: false, error: err.message };
+    }
+    if (err instanceof Error) {
+      return { success: false, error: err.message };
+    }
+    return { success: false, error: "Erro inesperado ao atualizar música do setlist." };
   }
 }
 

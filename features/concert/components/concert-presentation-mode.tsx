@@ -7,9 +7,12 @@ import { CifraClubSearchButton } from "@/features/music/components/cifraclub-sea
 import type { Music } from "@/features/music/types";
 import { MusicForm } from "@/features/music/components/music-form";
 import { updateMusicAction } from "@/features/music/actions/music-actions";
+import { updateSetlistMusicAction } from "../actions/concert-actions";
 
 interface ConcertPresentationModeProps {
   setlist: SetlistItem[];
+  /** Set when showing a concert's setlist; edits then apply to that setlist row only. */
+  concertId?: string;
   initialIndex?: number;
   concertTitle?: string;
   onClose: (lastIndex?: number) => void;
@@ -31,6 +34,7 @@ const FONT_SIZE_LABELS: Record<LyricsFontSize, string> = {
 
 export function ConcertPresentationMode({
   setlist,
+  concertId,
   initialIndex = 0,
   concertTitle,
   onClose,
@@ -438,7 +442,11 @@ export function ConcertPresentationMode({
         onClose={() => setEditingMusic(null)}
         onSubmit={async (data) => {
           if (!editingMusic) return { success: false, error: "Música não encontrada." };
-          const res = await updateMusicAction(editingMusic.id, data);
+          const isSetlistItem = Boolean(concertId) && setlist.some((item) => item.id === editingMusic.id);
+          const res =
+            isSetlistItem && concertId
+              ? await updateSetlistMusicAction(concertId, editingMusic.id, data)
+              : await updateMusicAction(editingMusic.id, data);
           if (res.success && res.data) {
             const updated = res.data;
             setMusicOverrides((prev) => ({ ...prev, [updated.id]: updated }));
