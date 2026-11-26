@@ -158,7 +158,7 @@ export async function duplicateConcertAction(
 export async function addMusicsToSetlistAction(
   concertId: string,
   musicIds: string[]
-): Promise<ActionResult<{ addedCount: number }>> {
+): Promise<ActionResult<{ addedCount: number; skippedTitles: string[] }>> {
   try {
     const customerId = await requireAuthCustomerId();
     const result = await addMusicsToSetlist(concertId, musicIds, customerId);

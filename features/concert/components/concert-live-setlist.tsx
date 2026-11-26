@@ -21,6 +21,8 @@ import {
   updateMusicAction,
 } from "@/features/music/actions/music-actions";
 
+import { songKey } from "@/features/concert/utils/song-key";
+
 interface ConcertLiveSetlistProps {
   concertId: string;
   onClose: () => void;
@@ -422,7 +424,7 @@ export function ConcertLiveSetlist({
   }
 
   const setlist = concert.setlist || [];
-  const existingMusicIds = new Set(setlist.flatMap((it) => (it.musicId ? [it.musicId] : [])));
+  const existingSongKeys = new Set(setlist.flatMap((it) => (it.music ? [songKey(it.music.title, it.music.artist)] : [])));
 
   // Helper to open presentation mode while recording the selected song
   const openPresentation = (
@@ -503,7 +505,7 @@ export function ConcertLiveSetlist({
     : [];
 
   const inSetlistCount = searchResults.filter((m) =>
-    existingMusicIds.has(m.id)
+    existingSongKeys.has(songKey(m.title, m.artist))
   ).length;
   const inGeneralRepertoireCount = searchResults.length - inSetlistCount;
 
@@ -1204,7 +1206,7 @@ export function ConcertLiveSetlist({
       {/* Add To Setlist Modal (Customer Repertoire) */}
       <AddToSetlistModal
         isOpen={isAddModalOpen}
-        existingMusicIds={existingMusicIds}
+        existingSongKeys={existingSongKeys}
         initialSearch={searchTerm}
         onClose={() => setIsAddModalOpen(false)}
         onAdd={handleAddMusics}
@@ -1244,7 +1246,7 @@ export function ConcertLiveSetlist({
           concertId={concertId}
           initialIndex={presentationIndex}
           concertTitle={concert.title}
-          existingMusicIds={existingMusicIds}
+          existingSongKeys={existingSongKeys}
           onAddToSetlist={async (musicId) => {
             await handleQuickAddMusic(musicId);
           }}

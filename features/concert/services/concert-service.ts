@@ -8,6 +8,7 @@ import { projects } from "@/db/schema/projects";
 import { contractors } from "@/db/schema/contractors";
 import { concertMusicians } from "@/db/schema/concert-musicians";
 import { accompanyingMusicians } from "@/db/schema/accompanying-musicians";
+import { songKey } from "@/features/concert/utils/song-key";
 import type {
   Concert,
   ConcertWithSetlist,
@@ -525,9 +526,9 @@ export async function addMusicsToSetlist(
   concertId: string,
   musicIds: string[],
   customerId: string
-): Promise<{ addedCount: number }> {
+): Promise<{ addedCount: number; skippedTitles: string[] }> {
   if (musicIds.length === 0) {
-    return { addedCount: 0 };
+    return { addedCount: 0, skippedTitles: [] };
   }
 
   // 1. Verify concert ownership
@@ -551,20 +552,39 @@ export async function addMusicsToSetlist(
     .where(and(eq(customerMusics.customerId, customerId), inArray(customerMusics.id, musicIds)));
 
   if (libraryMusics.length === 0) {
-    return { addedCount: 0 };
+    return { addedCount: 0, skippedTitles: [] };
   }
 
-  // 3. Get current maximum position
-  const [maxPosResult] = await db
-    .select({ maxPos: sql<number>`coalesce(max(${setlistMusic.position}), 0)::int` })
+  // 3. Get current maximum position and the songs already in the setlist.
+  // A song is identified by normalized title + artist, never by library ID.
+  const existingRows = await db
+    .select({ title: setlistMusic.title, artist: setlistMusic.artist, position: setlistMusic.position })
     .from(setlistMusic)
     .where(eq(setlistMusic.concertId, concertId));
 
-  let currentPos = maxPosResult?.maxPos || 0;
+  const seenKeys = new Set(existingRows.map((r) => songKey(r.title, r.artist)));
+  let currentPos = existingRows.reduce((max, r) => Math.max(max, r.position), 0);
 
-  // 4. Copy each library song into the concert (copy-on-add)
+  // 4. Copy each library song into the concert (copy-on-add), skipping duplicates
+  // both against the existing setlist and within this same batch.
+  const toInsert: (typeof libraryMusics)[number][] = [];
+  const skippedTitles: string[] = [];
+  for (const music of libraryMusics) {
+    const key = songKey(music.title, music.artist);
+    if (seenKeys.has(key)) {
+      skippedTitles.push(music.title);
+      continue;
+    }
+    seenKeys.add(key);
+    toInsert.push(music);
+  }
+
+  if (toInsert.length === 0) {
+    return { addedCount: 0, skippedTitles };
+  }
+
   await db.insert(setlistMusic).values(
-    libraryMusics.map((music) => {
+    toInsert.map((music) => {
       currentPos++;
       return {
         concertId,
@@ -585,7 +605,7 @@ export async function addMusicsToSetlist(
     })
   );
 
-  return { addedCount: libraryMusics.length };
+  return { addedCount: toInsert.length, skippedTitles };
 }
 
 export async function removeSetlistItem(

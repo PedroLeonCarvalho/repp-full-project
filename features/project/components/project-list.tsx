@@ -371,13 +371,15 @@ export function ProjectList({
                               key={concert.id}
                               className={`flex flex-col sm:flex-row sm:items-center justify-between p-2.5 sm:p-3 rounded-xl border transition-all gap-2 ${
                                 isPassed
-                                  ? "border-zinc-800/40 bg-zinc-950/40 opacity-70"
+                                  ? "border-zinc-800/40 bg-zinc-950/40"
                                   : "border-zinc-700/60 bg-zinc-800 hover:border-zinc-600/80 hover:bg-zinc-700"
                               }`}
                             >
                               <div
                                 onClick={() => onOpenConcertSetlist(concert.id)}
-                                className="flex-1 min-w-0 cursor-pointer group/item"
+                                className={`flex-1 min-w-0 cursor-pointer group/item ${
+                                  isPassed ? "opacity-70" : ""
+                                }`}
                               >
                                 {/* Line 1: Concert Title */}
                                 <div
@@ -420,7 +422,9 @@ export function ProjectList({
                               <button
                                 type="button"
                                 onClick={() => onOpenConcertSetlist(concert.id)}
-                                className="rounded-lg bg-emerald-500/15 border border-emerald-500/40 px-2.5 py-1 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/25 transition-colors cursor-pointer inline-flex items-center gap-1"
+                                className={`rounded-lg bg-emerald-500/15 border border-emerald-500/40 px-2.5 py-1 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/25 transition-colors cursor-pointer inline-flex items-center gap-1 ${
+                                  isPassed ? "opacity-70" : ""
+                                }`}
                                 title="Iniciar apresentação ao vivo com setlist e letras"
                               >
                                 <span>▶</span>
@@ -428,7 +432,11 @@ export function ProjectList({
                               </button>
 
                               {/* Concert options menu (⋮) */}
-                              <div className="relative">
+                              <div
+                                className={`relative ${
+                                  openConcertMenuId === concert.id ? "z-30" : ""
+                                }`}
+                              >
                                 <button
                                   type="button"
                                   onClick={() =>
