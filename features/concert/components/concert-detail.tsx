@@ -451,6 +451,15 @@ export function ConcertDetail({
                         title={`Clique para abrir letra: ${music.title}`}
                       >
                         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                          {music.sheetMusicFile && (
+                            <span
+                              className="text-xs shrink-0"
+                              title="Esta música tem partitura em PDF"
+                              aria-label="Partitura em PDF"
+                            >
+                              📄
+                            </span>
+                          )}
                           <span
                             className={`font-semibold text-xs sm:text-sm transition-colors truncate ${
                               isLastSelected
@@ -573,6 +582,22 @@ export function ConcertDetail({
                               <span className="text-sm">🎤</span>
                               <span>Ver Letra</span>
                             </button>
+
+                            {music.sheetMusicFile && (
+                              <a
+                                href={music.sheetMusicFile}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveMenuId(null);
+                                }}
+                                className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-emerald-400 hover:bg-zinc-700/70 rounded-xl transition-colors text-left cursor-pointer"
+                              >
+                                <span className="text-sm">📄</span>
+                                <span>Ver PDF</span>
+                              </a>
+                            )}
 
                             <div className="px-1 py-0.5">
                               <CifraClubSearchButton

@@ -1004,6 +1004,17 @@ export function ConcertLiveSetlist({
                         #{index + 1}
                       </span>
 
+                      {/* PDF sheet music indicator */}
+                      {music.sheetMusicFile && (
+                        <span
+                          className="text-sm shrink-0"
+                          title="Esta música tem partitura em PDF"
+                          aria-label="Partitura em PDF"
+                        >
+                          📄
+                        </span>
+                      )}
+
                       {/* Music Title */}
                       <span
                         onClick={() => {
@@ -1126,6 +1137,21 @@ export function ConcertLiveSetlist({
                                 <span className="text-sm">🎤</span>
                                 <span>{hasLyrics ? "Letra" : "Sem letra"}</span>
                               </button>
+                              {music.sheetMusicFile && (
+                                <a
+                                  href={music.sheetMusicFile}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveMenuItemId(null);
+                                  }}
+                                  className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-emerald-400 hover:bg-zinc-700/70 rounded-xl transition-colors text-left cursor-pointer"
+                                >
+                                  <span className="text-sm">📄</span>
+                                  <span>Ver PDF</span>
+                                </a>
+                              )}
                               <div className="px-1 py-0.5">
                                 <CifraClubSearchButton
                                   title={music.title}
