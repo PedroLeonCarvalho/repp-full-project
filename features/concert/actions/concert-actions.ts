@@ -163,6 +163,9 @@ export async function addMusicsToSetlistAction(
     const customerId = await requireAuthCustomerId();
     const result = await addMusicsToSetlist(concertId, musicIds, customerId);
     revalidatePath("/");
+    if (result.addedCount === 0 && result.skippedTitles.length > 0) {
+      return { success: false, error: "Música já está na apresentação." };
+    }
     return { success: true, data: result };
   } catch (err) {
     if (err instanceof ConcertServiceError) {

@@ -167,6 +167,15 @@ export function MusicList({
                 >
                   {/* Title + Tone Tag directly next to Title */}
                   <div className="flex flex-wrap items-center gap-2">
+                    {music.sheetMusicFile && (
+                      <span
+                        className="text-sm shrink-0"
+                        title="Esta música tem partitura em PDF"
+                        aria-label="Partitura em PDF"
+                      >
+                        📄
+                      </span>
+                    )}
                     <span className="font-semibold text-sm text-zinc-100 truncate group-hover:text-emerald-400 transition-colors">
                       {music.title}
                     </span>
@@ -334,6 +343,22 @@ export function MusicList({
                               <span className="text-sm">🎤</span>
                               <span>{hasLyrics ? "Letra" : "Sem letra"}</span>
                             </button>
+                            {music.sheetMusicFile && (
+                              <a
+                                href={music.sheetMusicFile}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                role="menuitem"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(null);
+                                }}
+                                className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-emerald-400 hover:bg-zinc-700/70 rounded-xl transition-colors text-left cursor-pointer"
+                              >
+                                <span className="text-sm">📄</span>
+                                <span>Ver PDF</span>
+                              </a>
+                            )}
                             <div className="px-1 py-0.5">
                               <CifraClubSearchButton
                                 title={music.title}
