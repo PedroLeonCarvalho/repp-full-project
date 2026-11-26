@@ -138,8 +138,6 @@ interface ProjectListProps {
   expandedIds: Set<string>;
   projectConcertsMap: Record<string, ConcertWithSetlist[]>;
   onToggleExpand: (id: string) => void;
-  onExpandAll: () => void;
-  onCollapseAll: () => void;
   onEditProject: (project: ProjectWithMusics) => void;
   onDeleteProject: (id: string) => void;
   onOpenCreateProject: () => void;
@@ -156,8 +154,6 @@ export function ProjectList({
   expandedIds,
   projectConcertsMap,
   onToggleExpand,
-  onExpandAll,
-  onCollapseAll,
   onEditProject,
   onDeleteProject,
   onOpenCreateProject,
@@ -169,6 +165,7 @@ export function ProjectList({
   onDeleteConcert,
 }: ProjectListProps) {
   const [openMenuProjectId, setOpenMenuProjectId] = useState<string | null>(null);
+  const [openConcertMenuId, setOpenConcertMenuId] = useState<string | null>(null);
   const [now] = useState(() => Date.now());
 
   // Sort projects by which has the concert with presentation date closer to current date
@@ -220,31 +217,6 @@ export function ProjectList({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Global Expand / Collapse Toolbar */}
-      <div className="flex items-center justify-between px-1">
-        <span className="text-xs font-medium text-zinc-400">
-          {projects.length} {projects.length === 1 ? "projeto" : "projetos"}
-        </span>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onExpandAll}
-            className="rounded-lg px-2.5 py-1 text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors cursor-pointer"
-          >
-            Expandir todos
-          </button>
-          <span className="text-zinc-600 text-xs">•</span>
-          <button
-            type="button"
-            onClick={onCollapseAll}
-            className="rounded-lg px-2.5 py-1 text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors cursor-pointer"
-          >
-            Recolher todos
-          </button>
-        </div>
-      </div>
-
       {/* Accordion Projects List */}
       <div className="flex flex-col gap-3">
         {sortedProjects.map((project) => {
@@ -255,7 +227,7 @@ export function ProjectList({
           return (
             <div
               key={project.id}
-              className="group overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-900/70 hover:border-zinc-700/80 transition-all shadow-sm"
+              className="group rounded-2xl border border-zinc-800/80 bg-zinc-900 hover:border-zinc-700/80 transition-all shadow-sm"
             >
               {/* Project Card Header */}
               <div className="flex items-center justify-between p-4 gap-3">
@@ -318,7 +290,7 @@ export function ProjectList({
                         className="fixed inset-0 z-20"
                         onClick={() => setOpenMenuProjectId(null)}
                       />
-                      <div className="absolute right-0 top-full mt-1 z-30 w-36 rounded-xl border border-zinc-800 bg-zinc-900/95 py-1.5 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">
+                      <div className="absolute right-0 top-full mt-1 z-30 w-36 rounded-xl border border-zinc-800 bg-zinc-900 py-1.5 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
                         <button
                           type="button"
                           onClick={() => {
@@ -399,13 +371,15 @@ export function ProjectList({
                               key={concert.id}
                               className={`flex flex-col sm:flex-row sm:items-center justify-between p-2.5 sm:p-3 rounded-xl border transition-all gap-2 ${
                                 isPassed
-                                  ? "border-zinc-800/40 bg-zinc-950/40 opacity-70"
-                                  : "border-zinc-800/60 bg-zinc-900/80 hover:border-zinc-700/80"
+                                  ? "border-zinc-800/40 bg-zinc-950/40"
+                                  : "border-zinc-700/60 bg-zinc-800 hover:border-zinc-600/80 hover:bg-zinc-700"
                               }`}
                             >
                               <div
                                 onClick={() => onOpenConcertSetlist(concert.id)}
-                                className="flex-1 min-w-0 cursor-pointer group/item"
+                                className={`flex-1 min-w-0 cursor-pointer group/item ${
+                                  isPassed ? "opacity-70" : ""
+                                }`}
                               >
                                 {/* Line 1: Concert Title */}
                                 <div
@@ -448,60 +422,99 @@ export function ProjectList({
                               <button
                                 type="button"
                                 onClick={() => onOpenConcertSetlist(concert.id)}
-                                className="rounded-lg bg-emerald-500/15 border border-emerald-500/40 px-2.5 py-1 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/25 transition-colors cursor-pointer inline-flex items-center gap-1"
+                                className={`rounded-lg bg-emerald-500/15 border border-emerald-500/40 px-2.5 py-1 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/25 transition-colors cursor-pointer inline-flex items-center gap-1 ${
+                                  isPassed ? "opacity-70" : ""
+                                }`}
                                 title="Iniciar apresentação ao vivo com setlist e letras"
                               >
                                 <span>▶</span>
                                 <span>Modo Palco</span>
                               </button>
 
-                              {onShareConcert && (
+                              {/* Concert options menu (⋮) */}
+                              <div
+                                className={`relative ${
+                                  openConcertMenuId === concert.id ? "z-30" : ""
+                                }`}
+                              >
                                 <button
                                   type="button"
-                                  onClick={() => onShareConcert(concert)}
-                                  className="rounded-lg bg-zinc-800 border border-zinc-700/70 px-2.5 py-1 text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:bg-zinc-700 transition-colors cursor-pointer inline-flex items-center gap-1"
-                                  title="Compartilhar setlist da apresentação"
-                                >
-                                  <span>🔗</span>
-                                  <span>Compartilhar</span>
-                                </button>
-                              )}
-
-                              <button
-                                type="button"
-                                onClick={() => onDuplicateConcert(concert.id)}
-                                className="rounded-lg bg-zinc-800 px-2.5 py-1 text-xs font-medium text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700 transition-colors cursor-pointer"
-                                title="Duplicar apresentação com todo o setlist"
-                              >
-                                📋 Duplicar
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => onOpenEditConcert(concert)}
-                                className="rounded-lg bg-zinc-800 border border-zinc-700/70 px-2.5 py-1 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-700 transition-colors cursor-pointer inline-flex items-center gap-1"
-                                title="Editar dados da apresentação (data, local, cachê, músicos)"
-                              >
-                                <span>✏️</span>
-                                <span>Editar</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (
-                                    confirm(
-                                      `Tem certeza de que deseja excluir o show "${concert.title}"?`
+                                  onClick={() =>
+                                    setOpenConcertMenuId(
+                                      openConcertMenuId === concert.id ? null : concert.id
                                     )
-                                  ) {
-                                    onDeleteConcert(concert.id);
                                   }
-                                }}
-                                className="rounded-lg p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-950/30 transition-colors cursor-pointer"
-                                title="Excluir apresentação"
-                              >
-                                🗑️
-                              </button>
+                                  className="rounded-lg p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors cursor-pointer"
+                                  aria-label="Opções da apresentação"
+                                  aria-expanded={openConcertMenuId === concert.id}
+                                >
+                                  ⋮
+                                </button>
+
+                                {openConcertMenuId === concert.id && (
+                                  <>
+                                    <div
+                                      className="fixed inset-0 z-20"
+                                      onClick={() => setOpenConcertMenuId(null)}
+                                    />
+                                    <div className="absolute right-0 top-full mt-1 z-30 w-40 rounded-xl border border-zinc-800 bg-zinc-900 py-1.5 shadow-2xl">
+                                      {onShareConcert && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setOpenConcertMenuId(null);
+                                            onShareConcert(concert);
+                                          }}
+                                          className="flex w-full items-center gap-2 px-3.5 py-2 text-xs text-emerald-400 hover:bg-zinc-800 hover:text-emerald-300 transition-colors cursor-pointer"
+                                          title="Compartilhar setlist da apresentação"
+                                        >
+                                          🔗 Compartilhar
+                                        </button>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setOpenConcertMenuId(null);
+                                          onDuplicateConcert(concert.id);
+                                        }}
+                                        className="flex w-full items-center gap-2 px-3.5 py-2 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors cursor-pointer"
+                                        title="Duplicar apresentação com todo o setlist"
+                                      >
+                                        📋 Duplicar
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setOpenConcertMenuId(null);
+                                          onOpenEditConcert(concert);
+                                        }}
+                                        className="flex w-full items-center gap-2 px-3.5 py-2 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors cursor-pointer"
+                                        title="Editar dados da apresentação (data, local, cachê, músicos)"
+                                      >
+                                        ✏️ Editar
+                                      </button>
+                                      <div className="h-px bg-zinc-800 my-1" />
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setOpenConcertMenuId(null);
+                                          if (
+                                            confirm(
+                                              `Tem certeza de que deseja excluir o show "${concert.title}"?`
+                                            )
+                                          ) {
+                                            onDeleteConcert(concert.id);
+                                          }
+                                        }}
+                                        className="flex w-full items-center gap-2 px-3.5 py-2 text-xs text-red-400 hover:bg-red-950/40 hover:text-red-300 transition-colors cursor-pointer"
+                                        title="Excluir apresentação"
+                                      >
+                                        🗑️ Excluir
+                                      </button>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </div>
                         );

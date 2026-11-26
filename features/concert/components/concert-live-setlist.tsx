@@ -1,6 +1,7 @@
 "use client";
 
 import { CifraClubSearchButton } from "@/features/music/components/cifraclub-search-button";
+import { SpotifySearchButton } from "@/features/music/components/spotify-search-button";
 import { useEffect, useRef, useState } from "react";
 import type { ConcertWithSetlist, SetlistItem } from "../types";
 import {
@@ -14,10 +15,13 @@ import { AddToSetlistModal } from "./add-to-setlist-modal";
 import { ConcertPresentationMode } from "./concert-presentation-mode";
 import type { Music } from "@/features/music/types";
 import { MusicForm } from "@/features/music/components/music-form";
+import { updateSetlistMusicAction } from "../actions/concert-actions";
 import {
   listMusicsAction,
   updateMusicAction,
 } from "@/features/music/actions/music-actions";
+
+import { songKey } from "@/features/concert/utils/song-key";
 
 interface ConcertLiveSetlistProps {
   concertId: string;
@@ -420,7 +424,7 @@ export function ConcertLiveSetlist({
   }
 
   const setlist = concert.setlist || [];
-  const existingMusicIds = new Set(setlist.flatMap((it) => (it.musicId ? [it.musicId] : [])));
+  const existingSongKeys = new Set(setlist.flatMap((it) => (it.music ? [songKey(it.music.title, it.music.artist)] : [])));
 
   // Helper to open presentation mode while recording the selected song
   const openPresentation = (
@@ -501,7 +505,7 @@ export function ConcertLiveSetlist({
     : [];
 
   const inSetlistCount = searchResults.filter((m) =>
-    existingMusicIds.has(m.id)
+    existingSongKeys.has(songKey(m.title, m.artist))
   ).length;
   const inGeneralRepertoireCount = searchResults.length - inSetlistCount;
 
@@ -1129,6 +1133,13 @@ export function ConcertLiveSetlist({
                                   className="w-full justify-center"
                                 />
                               </div>
+                              <div className="px-1 py-0.5">
+                                <SpotifySearchButton
+                                  title={music.title}
+                                  artist={music.artist}
+                                  className="w-full justify-center"
+                                />
+                              </div>
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -1195,7 +1206,7 @@ export function ConcertLiveSetlist({
       {/* Add To Setlist Modal (Customer Repertoire) */}
       <AddToSetlistModal
         isOpen={isAddModalOpen}
-        existingMusicIds={existingMusicIds}
+        existingSongKeys={existingSongKeys}
         initialSearch={searchTerm}
         onClose={() => setIsAddModalOpen(false)}
         onAdd={handleAddMusics}
@@ -1208,7 +1219,10 @@ export function ConcertLiveSetlist({
         onClose={() => setEditingMusic(null)}
         onSubmit={async (data) => {
           if (!editingMusic) return { success: false, error: "Música não encontrada." };
-          const res = await updateMusicAction(editingMusic.id, data);
+          const isSetlistItem = setlist.some((item) => item.id === editingMusic.id);
+          const res = isSetlistItem
+            ? await updateSetlistMusicAction(concertId, editingMusic.id, data)
+            : await updateMusicAction(editingMusic.id, data);
           if (res.success) {
             const [updatedConcert, updatedMusics] = await Promise.all([
               getConcertByIdAction(concertId),
@@ -1229,9 +1243,10 @@ export function ConcertLiveSetlist({
       {activePresentation !== null && currentMusicItem?.music && (
         <ConcertPresentationMode
           setlist={presentationSetlist}
+          concertId={concertId}
           initialIndex={presentationIndex}
           concertTitle={concert.title}
-          existingMusicIds={existingMusicIds}
+          existingSongKeys={existingSongKeys}
           onAddToSetlist={async (musicId) => {
             await handleQuickAddMusic(musicId);
           }}

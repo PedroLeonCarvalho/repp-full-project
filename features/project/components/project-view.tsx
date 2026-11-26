@@ -118,17 +118,6 @@ export function ProjectView() {
     });
   };
 
-  const handleExpandAll = () => {
-    setExpandedIds(new Set(projects.map((p) => p.id)));
-    for (const p of projects) {
-      void loadConcertsForProject(p.id);
-    }
-  };
-
-  const handleCollapseAll = () => {
-    setExpandedIds(new Set());
-  };
-
   // Project CRUD
   const handleCreateOrUpdateProject = async (
     data: CreateProjectInput
@@ -260,16 +249,7 @@ export function ProjectView() {
   return (
     <div className="flex flex-col gap-5 w-full max-w-4xl mx-auto px-4 py-6">
       {/* Top Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-50 tracking-tight">
-            Projetos e Apresentações
-          </h1>
-          <p className="text-xs sm:text-sm text-zinc-400 mt-0.5">
-            Gerencie suas bandas, shows agendados, cachês e setlists em tempo real.
-          </p>
-        </div>
-
+      <div className="flex items-center justify-end gap-4">
         <button
           type="button"
           onClick={() => {
@@ -291,8 +271,7 @@ export function ProjectView() {
               d="M12 4v16m8-8H4"
             />
           </svg>
-          <span className="hidden xs:inline">Novo Projeto</span>
-          <span className="xs:hidden">Novo</span>
+          <span>Novo Projeto</span>
         </button>
       </div>
 
@@ -332,8 +311,6 @@ export function ProjectView() {
           expandedIds={expandedIds}
           projectConcertsMap={projectConcertsMap}
           onToggleExpand={handleToggleExpand}
-          onExpandAll={handleExpandAll}
-          onCollapseAll={handleCollapseAll}
           onEditProject={(project) => {
             setEditingProject(project);
             setIsProjectFormOpen(true);

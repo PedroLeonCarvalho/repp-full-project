@@ -7,16 +7,21 @@ import { CifraClubSearchButton } from "@/features/music/components/cifraclub-sea
 import type { Music } from "@/features/music/types";
 import { MusicForm } from "@/features/music/components/music-form";
 import { updateMusicAction } from "@/features/music/actions/music-actions";
+import { updateSetlistMusicAction } from "../actions/concert-actions";
+
+import { songKey } from "@/features/concert/utils/song-key";
 
 interface ConcertPresentationModeProps {
   setlist: SetlistItem[];
+  /** Set when showing a concert's setlist; edits then apply to that setlist row only. */
+  concertId?: string;
   initialIndex?: number;
   concertTitle?: string;
   onClose: (lastIndex?: number) => void;
   onComplete?: (itemId: string) => void;
   onAddToSetlist?: (musicId: string) => Promise<void>;
   onRemoveFromSetlist?: (itemId: string) => Promise<void>;
-  existingMusicIds?: Set<string>;
+  existingSongKeys?: Set<string>;
 }
 
 type LyricsFontSize = "small" | "normal" | "large" | "xlarge" | "xxlarge";
@@ -31,13 +36,14 @@ const FONT_SIZE_LABELS: Record<LyricsFontSize, string> = {
 
 export function ConcertPresentationMode({
   setlist,
+  concertId,
   initialIndex = 0,
   concertTitle,
   onClose,
   onComplete,
   onAddToSetlist,
   onRemoveFromSetlist,
-  existingMusicIds,
+  existingSongKeys,
 }: ConcertPresentationModeProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -324,7 +330,7 @@ export function ConcertPresentationMode({
                   {keyDisplay}
                 </span>
               )}
-              {onAddToSetlist && (currentItem.id.startsWith("temp-") || (existingMusicIds && !existingMusicIds.has(music.id))) && !addedMusicIds.has(music.id) && (
+              {onAddToSetlist && (currentItem.id.startsWith("temp-") || (existingSongKeys && !existingSongKeys.has(songKey(music.title, music.artist)))) && !addedMusicIds.has(music.id) && (
                 <button
                   type="button"
                   disabled={isAddingToSetlist}
@@ -438,7 +444,11 @@ export function ConcertPresentationMode({
         onClose={() => setEditingMusic(null)}
         onSubmit={async (data) => {
           if (!editingMusic) return { success: false, error: "Música não encontrada." };
-          const res = await updateMusicAction(editingMusic.id, data);
+          const isSetlistItem = Boolean(concertId) && setlist.some((item) => item.id === editingMusic.id);
+          const res =
+            isSetlistItem && concertId
+              ? await updateSetlistMusicAction(concertId, editingMusic.id, data)
+              : await updateMusicAction(editingMusic.id, data);
           if (res.success && res.data) {
             const updated = res.data;
             setMusicOverrides((prev) => ({ ...prev, [updated.id]: updated }));

@@ -6,9 +6,11 @@ import { listMusicsAction } from "@/features/music/actions/music-actions";
 import { MUSIC_GENRES } from "@/db/schema/enums";
 import { GENRE_LABELS } from "@/features/music/components/music-filters";
 
+import { songKey } from "@/features/concert/utils/song-key";
+
 interface AddToSetlistModalProps {
   isOpen: boolean;
-  existingMusicIds: Set<string>;
+  existingSongKeys: Set<string>;
   initialSearch?: string;
   onClose: () => void;
   onAdd: (musicIds: string[]) => Promise<void>;
@@ -20,7 +22,7 @@ export function AddToSetlistModal(props: AddToSetlistModalProps) {
 }
 
 function AddToSetlistModalContent({
-  existingMusicIds,
+  existingSongKeys,
   initialSearch = "",
   onClose,
   onAdd,
@@ -84,7 +86,7 @@ function AddToSetlistModalContent({
   };
 
   const handleSelectAllVisible = () => {
-    const selectable = filteredMusics.filter((m) => !existingMusicIds.has(m.id));
+    const selectable = filteredMusics.filter((m) => !existingSongKeys.has(songKey(m.title, m.artist)));
     const allSelected = selectable.every((m) => selectedIds.has(m.id));
 
     setSelectedIds((prev) => {
@@ -110,7 +112,7 @@ function AddToSetlistModalContent({
     }
   };
 
-  const selectableVisible = filteredMusics.filter((m) => !existingMusicIds.has(m.id));
+  const selectableVisible = filteredMusics.filter((m) => !existingSongKeys.has(songKey(m.title, m.artist)));
   const isAllVisibleSelected =
     selectableVisible.length > 0 &&
     selectableVisible.every((m) => selectedIds.has(m.id));
@@ -217,7 +219,7 @@ function AddToSetlistModalContent({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
               {filteredMusics.map((music) => {
-                const isInSetlist = existingMusicIds.has(music.id);
+                const isInSetlist = existingSongKeys.has(songKey(music.title, music.artist));
                 const isSelected = selectedIds.has(music.id);
                 const keyDisplay = music.preferredKey || music.originalKey;
 

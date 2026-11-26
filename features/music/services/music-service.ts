@@ -11,6 +11,7 @@ import type {
 import {
   createMusicSchema,
   updateMusicSchema,
+  type UpdateMusicSchemaInput,
 } from "../schemas/music-schema";
 
 export class MusicServiceError extends Error {
@@ -127,6 +128,38 @@ export async function createMusic(
   }
 }
 
+/**
+ * Maps validated update input to the personal (non-identity) columns shared by
+ * customer_musics and setlist_music. title/artist are never included.
+ */
+export function buildPersonalMusicUpdate(validated: UpdateMusicSchemaInput) {
+  let genresUpdate: { genre?: MusicGenre | null; genres?: string[] | null } = {};
+  if (validated.genres !== undefined) {
+    const gList = validated.genres || [];
+    genresUpdate = {
+      genres: gList.length > 0 ? gList : null,
+      genre: gList[0] || null,
+    };
+  } else if (validated.genre !== undefined) {
+    genresUpdate = {
+      genre: validated.genre,
+      genres: validated.genre ? [validated.genre] : null,
+    };
+  }
+
+  return {
+    ...(validated.lyrics !== undefined ? { lyrics: validated.lyrics } : {}),
+    ...(validated.chords !== undefined ? { chords: validated.chords } : {}),
+    ...(validated.originalKey !== undefined ? { originalKey: validated.originalKey } : {}),
+    ...(validated.preferredKey !== undefined ? { preferredKey: validated.preferredKey } : {}),
+    ...(validated.studying !== undefined ? { studying: validated.studying } : {}),
+    ...genresUpdate,
+    ...(validated.note !== undefined ? { note: validated.note } : {}),
+    ...(validated.spotifyLink !== undefined ? { spotifyLink: validated.spotifyLink } : {}),
+    ...(validated.sheetMusicFile !== undefined ? { sheetMusicFile: validated.sheetMusicFile } : {}),
+  };
+}
+
 export async function updateMusic(
   id: string,
   input: Omit<UpdateMusicInput, "id">,
@@ -148,34 +181,10 @@ export async function updateMusic(
     );
   }
 
-  let genresUpdate: { genre?: MusicGenre | null; genres?: string[] | null } = {};
-  if (validated.genres !== undefined) {
-    const gList = validated.genres || [];
-    genresUpdate = {
-      genres: gList.length > 0 ? gList : null,
-      genre: gList[0] || null,
-    };
-  } else if (validated.genre !== undefined) {
-    genresUpdate = {
-      genre: validated.genre,
-      genres: validated.genre ? [validated.genre] : null,
-    };
-  }
-
   // Update only personal fields (title/artist are immutable)
   const [updated] = await db
     .update(customerMusics)
-    .set({
-      ...(validated.lyrics !== undefined ? { lyrics: validated.lyrics } : {}),
-      ...(validated.chords !== undefined ? { chords: validated.chords } : {}),
-      ...(validated.originalKey !== undefined ? { originalKey: validated.originalKey } : {}),
-      ...(validated.preferredKey !== undefined ? { preferredKey: validated.preferredKey } : {}),
-      ...(validated.studying !== undefined ? { studying: validated.studying } : {}),
-      ...genresUpdate,
-      ...(validated.note !== undefined ? { note: validated.note } : {}),
-      ...(validated.spotifyLink !== undefined ? { spotifyLink: validated.spotifyLink } : {}),
-      ...(validated.sheetMusicFile !== undefined ? { sheetMusicFile: validated.sheetMusicFile } : {}),
-    })
+    .set(buildPersonalMusicUpdate(validated))
     .where(and(eq(customerMusics.id, id), eq(customerMusics.customerId, customerId)))
     .returning();
 

@@ -20,6 +20,9 @@ import { formatConcertDate } from "@/lib/date-utils";
 import type { Music } from "@/features/music/types";
 import { MusicForm } from "@/features/music/components/music-form";
 import { updateMusicAction } from "@/features/music/actions/music-actions";
+import { updateSetlistMusicAction } from "../actions/concert-actions";
+
+import { songKey } from "@/features/concert/utils/song-key";
 
 interface ConcertDetailProps {
   concertId: string;
@@ -209,9 +212,7 @@ export function ConcertDetail({
 
 
 
-  const existingMusicIds = new Set(
-    concert.setlist.flatMap((s) => (s.musicId ? [s.musicId] : []))
-  );
+  const existingSongKeys = new Set(concert.setlist.flatMap((s) => (s.music ? [songKey(s.music.title, s.music.artist)] : [])));
 
   const formattedDate = formatConcertDate(concert.presentationDate);  return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -705,7 +706,7 @@ export function ConcertDetail({
       {/* Add Musics to Setlist Modal */}
       <AddToSetlistModal
         isOpen={isAddModalOpen}
-        existingMusicIds={existingMusicIds}
+        existingSongKeys={existingSongKeys}
         onClose={() => setIsAddModalOpen(false)}
         onAdd={handleAddMusics}
       />
@@ -741,7 +742,10 @@ export function ConcertDetail({
         onClose={() => setEditingMusic(null)}
         onSubmit={async (data) => {
           if (!editingMusic) return { success: false, error: "Música não encontrada." };
-          const res = await updateMusicAction(editingMusic.id, data);
+          const isSetlistItem = concert.setlist.some((item) => item.id === editingMusic.id);
+          const res = isSetlistItem
+            ? await updateSetlistMusicAction(concertId, editingMusic.id, data)
+            : await updateMusicAction(editingMusic.id, data);
           if (res.success) {
             void refreshConcert();
           }
@@ -754,6 +758,7 @@ export function ConcertDetail({
         <ConcertPresentationMode
           setlist={concert.setlist}
           initialIndex={presentationState.index}
+          concertId={concertId}
           concertTitle={concert.title}
           onRemoveFromSetlist={async (itemId) => {
             await handleRemoveItem(itemId);

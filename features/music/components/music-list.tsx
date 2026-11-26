@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Music } from "../types";
 import { GENRE_LABELS } from "./music-filters";
 import { CifraClubSearchButton } from "./cifraclub-search-button";
+import { SpotifySearchButton } from "./spotify-search-button";
 
 interface MusicListProps {
   musics: Music[];
@@ -29,6 +30,7 @@ export function MusicList({
   onAddToConcert,
 }: MusicListProps) {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const hasSomeSelected = selectedIds.size > 0;
 
   if (musics.length === 0) {
@@ -261,28 +263,6 @@ export function MusicList({
                   </div>
                 ) : (
                   <>
-                    {/* Dedicated "Letra" Button */}
-                    {hasLyrics ? (
-                      <button
-                        type="button"
-                        onClick={() => onSelect(music)}
-                        className="inline-flex items-center gap-1 rounded-xl bg-emerald-500/15 hover:bg-emerald-500 hover:text-zinc-950 border border-emerald-500/35 px-2.5 py-1.5 text-xs font-bold text-emerald-400 transition-all active:scale-95 cursor-pointer"
-                        title="Ver letra da música"
-                      >
-                        Letra
-                      </button>
-                    ) : (
-                      <span className="rounded-xl bg-zinc-800/40 border border-zinc-700/30 px-2 py-1.5 text-[11px] font-medium text-zinc-600 select-none hidden xs:inline">
-                        Sem letra
-                      </span>
-                    )}
-
-                    <CifraClubSearchButton
-                      title={music.title}
-                      artist={music.artist}
-                      variant="compact"
-                    />
-
                     {/* Add to Concert button on card */}
                     <button
                       type="button"
@@ -306,51 +286,99 @@ export function MusicList({
                       <span className="hidden md:inline">Apresentação</span>
                     </button>
 
-                    {/* Edit */}
-                    <button
-                      type="button"
-                      onClick={() => onEdit(music)}
-                      className="rounded-xl p-2 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors cursor-pointer"
-                      title="Editar música"
-                      aria-label="Editar"
-                    >
-                      <svg
-                        className="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
+                    {/* More actions menu ("...") */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenMenuId(openMenuId === music.id ? null : music.id);
+                        }}
+                        className="rounded-xl p-2 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors cursor-pointer"
+                        title="Mais ações"
+                        aria-label="Mais ações"
+                        aria-haspopup="menu"
+                        aria-expanded={openMenuId === music.id}
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                        />
-                      </svg>
-                    </button>
+                        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                          <circle cx="5" cy="12" r="2" />
+                          <circle cx="12" cy="12" r="2" />
+                          <circle cx="19" cy="12" r="2" />
+                        </svg>
+                      </button>
 
-                    {/* Delete */}
-                    <button
-                      type="button"
-                      onClick={() => setDeleteConfirmId(music.id)}
-                      className="rounded-xl p-2 text-zinc-400 hover:bg-red-950/50 hover:text-red-400 transition-colors cursor-pointer"
-                      title="Excluir música"
-                      aria-label="Excluir"
-                    >
-                      <svg
-                        className="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                      </svg>
-                    </button>
+                      {openMenuId === music.id && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-40 bg-black/30"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenMenuId(null);
+                            }}
+                          />
+                          <div
+                            role="menu"
+                            className="absolute right-0 top-full mt-1.5 z-50 w-48 rounded-2xl bg-zinc-800 border border-zinc-700 shadow-2xl p-1.5 flex flex-col gap-0.5"
+                          >
+                            <button
+                              type="button"
+                              role="menuitem"
+                              disabled={!hasLyrics}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(null);
+                                onSelect(music);
+                              }}
+                              className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-emerald-400 hover:bg-zinc-700/70 rounded-xl transition-colors text-left cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              <span className="text-sm">🎤</span>
+                              <span>{hasLyrics ? "Letra" : "Sem letra"}</span>
+                            </button>
+                            <div className="px-1 py-0.5">
+                              <CifraClubSearchButton
+                                title={music.title}
+                                artist={music.artist}
+                                className="w-full justify-center"
+                              />
+                            </div>
+                            <div className="px-1 py-0.5">
+                              <SpotifySearchButton
+                                title={music.title}
+                                artist={music.artist}
+                                className="w-full justify-center"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(null);
+                                onEdit(music);
+                              }}
+                              className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-700/70 rounded-xl transition-colors text-left cursor-pointer"
+                            >
+                              <span className="text-sm">✏️</span>
+                              <span>Editar</span>
+                            </button>
+                            <div className="h-px bg-zinc-700/60 my-0.5" />
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(null);
+                                setDeleteConfirmId(music.id);
+                              }}
+                              className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-red-400 hover:bg-red-950/40 rounded-xl transition-colors text-left cursor-pointer"
+                            >
+                              <span className="text-sm">🗑️</span>
+                              <span>Excluir</span>
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </>
                 )}
               </div>

@@ -8,6 +8,7 @@ import { projects } from "@/db/schema/projects";
 import { contractors } from "@/db/schema/contractors";
 import { concertMusicians } from "@/db/schema/concert-musicians";
 import { accompanyingMusicians } from "@/db/schema/accompanying-musicians";
+import { songKey } from "@/features/concert/utils/song-key";
 import type {
   Concert,
   ConcertWithSetlist,
@@ -15,7 +16,9 @@ import type {
   PublicSharedConcert,
   UpdateConcertInput,
 } from "../types";
-import type { Music, MusicGenre } from "@/features/music/types";
+import type { Music, MusicGenre, UpdateMusicInput } from "@/features/music/types";
+import { buildPersonalMusicUpdate } from "@/features/music/services/music-service";
+import { updateMusicSchema } from "@/features/music/schemas/music-schema";
 import {
   createConcertSchema,
   updateConcertSchema,
@@ -523,9 +526,9 @@ export async function addMusicsToSetlist(
   concertId: string,
   musicIds: string[],
   customerId: string
-): Promise<{ addedCount: number }> {
+): Promise<{ addedCount: number; skippedTitles: string[] }> {
   if (musicIds.length === 0) {
-    return { addedCount: 0 };
+    return { addedCount: 0, skippedTitles: [] };
   }
 
   // 1. Verify concert ownership
@@ -549,20 +552,39 @@ export async function addMusicsToSetlist(
     .where(and(eq(customerMusics.customerId, customerId), inArray(customerMusics.id, musicIds)));
 
   if (libraryMusics.length === 0) {
-    return { addedCount: 0 };
+    return { addedCount: 0, skippedTitles: [] };
   }
 
-  // 3. Get current maximum position
-  const [maxPosResult] = await db
-    .select({ maxPos: sql<number>`coalesce(max(${setlistMusic.position}), 0)::int` })
+  // 3. Get current maximum position and the songs already in the setlist.
+  // A song is identified by normalized title + artist, never by library ID.
+  const existingRows = await db
+    .select({ title: setlistMusic.title, artist: setlistMusic.artist, position: setlistMusic.position })
     .from(setlistMusic)
     .where(eq(setlistMusic.concertId, concertId));
 
-  let currentPos = maxPosResult?.maxPos || 0;
+  const seenKeys = new Set(existingRows.map((r) => songKey(r.title, r.artist)));
+  let currentPos = existingRows.reduce((max, r) => Math.max(max, r.position), 0);
 
-  // 4. Copy each library song into the concert (copy-on-add)
+  // 4. Copy each library song into the concert (copy-on-add), skipping duplicates
+  // both against the existing setlist and within this same batch.
+  const toInsert: (typeof libraryMusics)[number][] = [];
+  const skippedTitles: string[] = [];
+  for (const music of libraryMusics) {
+    const key = songKey(music.title, music.artist);
+    if (seenKeys.has(key)) {
+      skippedTitles.push(music.title);
+      continue;
+    }
+    seenKeys.add(key);
+    toInsert.push(music);
+  }
+
+  if (toInsert.length === 0) {
+    return { addedCount: 0, skippedTitles };
+  }
+
   await db.insert(setlistMusic).values(
-    libraryMusics.map((music) => {
+    toInsert.map((music) => {
       currentPos++;
       return {
         concertId,
@@ -583,7 +605,7 @@ export async function addMusicsToSetlist(
     })
   );
 
-  return { addedCount: libraryMusics.length };
+  return { addedCount: toInsert.length, skippedTitles };
 }
 
 export async function removeSetlistItem(
@@ -684,6 +706,34 @@ export async function setSetlistItemConcluded(
   }
 
   return { success: true };
+}
+
+/**
+ * Edits a song's personal fields inside one concert's setlist only.
+ * Does not touch the library song (customer_musics), so the library and other
+ * concerts are unaffected. title/artist remain immutable, as in the library.
+ */
+export async function updateSetlistMusic(
+  concertId: string,
+  setlistItemId: string,
+  input: Omit<UpdateMusicInput, "id">,
+  customerId: string
+): Promise<Music> {
+  await assertCanEditConcert(concertId, customerId);
+
+  const validated = updateMusicSchema.parse({ ...input, id: setlistItemId });
+
+  const [updated] = await db
+    .update(setlistMusic)
+    .set(buildPersonalMusicUpdate(validated))
+    .where(and(eq(setlistMusic.id, setlistItemId), eq(setlistMusic.concertId, concertId)))
+    .returning();
+
+  if (!updated) {
+    throw new ConcertServiceError("Música não encontrada no setlist deste show.", "NOT_FOUND");
+  }
+
+  return setlistRowToMusic(updated, customerId);
 }
 
 /**
