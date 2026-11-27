@@ -11,6 +11,7 @@ import type {
   UpdateMusicInput,
 } from "../types";
 import { GENRE_LABELS } from "./music-filters";
+import { sheetMusicUrl } from "../utils/sheet-music-url";
 import {
   searchLyricsAction,
   uploadSheetMusicAction,
@@ -116,8 +117,8 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
   const [spotifyLink, setSpotifyLink] = useState(
     initialData?.spotifyLink || ""
   );
-  const [sheetMusicFile, setSheetMusicFile] = useState(
-    initialData?.sheetMusicFile || ""
+  const [sheetMusicFileId, setSheetMusicFileId] = useState(
+    initialData?.sheetMusicFileId || ""
   );
   const [sheetMusicFileName, setSheetMusicFileName] = useState<string>("");
   const [isUploadingPdf, setIsUploadingPdf] = useState(false);
@@ -133,8 +134,8 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
       return;
     }
 
-    if (file.size > 15 * 1024 * 1024) {
-      setUploadPdfError("O arquivo PDF excede o tamanho limite de 15MB.");
+    if (file.size > 4 * 1024 * 1024) {
+      setUploadPdfError("O arquivo PDF excede o tamanho limite de 4MB.");
       return;
     }
 
@@ -147,7 +148,7 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
 
       const result = await uploadSheetMusicAction(formData);
       if (result.success) {
-        setSheetMusicFile(result.data.url);
+        setSheetMusicFileId(result.data.fileId);
         setSheetMusicFileName(result.data.fileName);
       } else {
         setUploadPdfError(result.error);
@@ -328,7 +329,7 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
           genre: genres.length > 0 ? genres[0] : null,
           note: note.trim() || null,
           spotifyLink: spotifyLink.trim() || null,
-          sheetMusicFile: sheetMusicFile.trim() || null,
+          sheetMusicFileId: sheetMusicFileId || null,
         };
         payload = editPayload;
       } else {
@@ -344,7 +345,7 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
           genre: genres.length > 0 ? genres[0] : null,
           note: note.trim() || null,
           spotifyLink: spotifyLink.trim() || null,
-          sheetMusicFile: sheetMusicFile.trim() || null,
+          sheetMusicFileId: sheetMusicFileId || null,
         };
         payload = createPayload;
       }
@@ -850,16 +851,16 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
                 disabled={isUploadingPdf}
               />
 
-              {sheetMusicFile ? (
+              {sheetMusicFileId ? (
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-zinc-800/80 border border-emerald-500/40 shadow-sm">
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="text-2xl shrink-0">📄</span>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-zinc-100 truncate">
-                        {sheetMusicFileName || (sheetMusicFile.startsWith("/uploads/") ? sheetMusicFile.split("/").pop() : sheetMusicFile)}
+                        {sheetMusicFileName || "Partitura (PDF)"}
                       </p>
                       <a
-                        href={sheetMusicFile}
+                        href={sheetMusicUrl(sheetMusicFileId)!}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-xs text-emerald-400 hover:text-emerald-300 underline inline-flex items-center gap-1 font-medium mt-0.5"
@@ -881,7 +882,7 @@ function MusicFormModal({ initialData, onClose, onSubmit }: MusicFormModalProps)
                     <button
                       type="button"
                       onClick={() => {
-                        setSheetMusicFile("");
+                        setSheetMusicFileId("");
                         setSheetMusicFileName("");
                         setUploadPdfError(null);
                         if (fileInputRef.current) fileInputRef.current.value = "";

@@ -382,11 +382,16 @@ específica.
 O banco poderá armazenar referências e metadados de arquivos mantidos em
 serviço apropriado.
 
-```{=html}
-<!-- DECISÃO PENDENTE:
-Definir estratégia de armazenamento quando a funcionalidade for implementada.
--->
-```
+**Decisão (armazenamento de partituras):** os bytes dos PDFs são armazenados no
+PostgreSQL, na tabela `sheet_music_files` (`bytea`, limite de 4 MB por arquivo, por
+causa do limite de corpo de requisição de ~4,5 MB da Vercel). `customer_musics` e
+`setlist_music` referenciam o arquivo por `sheet_music_file_id`; cópias do setlist
+compartilham a mesma linha. Os PDFs são servidos por `GET /api/sheet-music/[id]`
+com `Cache-Control: public, max-age=31536000, immutable` e ETag (sha256). Como o id é
+o próprio "version" (substituir o PDF cria um novo id), não há query de versão.
+Acesso público por id não adivinhável. Arquivos órfãos (não referenciados e com mais
+de 36 h) são removidos pelo cron `/api/cron/cleanup-sheet-music`, protegido por
+`CRON_SECRET`.
 ## 14. Geração de contratos
 
 A geração deverá separar:
