@@ -229,10 +229,15 @@ function ConcertFormModal({
       return;
     }
 
+    if (!selectedProjectId) {
+      setErrorMessage("Selecione um projeto para a apresentação.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const res = await onSubmit({
-        projectId,
+        projectId: selectedProjectId,
         contractorId: contractorId || null,
         title: title.trim(),
         location: location.trim() || null,
