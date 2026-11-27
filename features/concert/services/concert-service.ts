@@ -18,6 +18,11 @@ import type {
 } from "../types";
 import type { Music, MusicGenre, UpdateMusicInput } from "@/features/music/types";
 import { buildPersonalMusicUpdate } from "@/features/music/services/music-service";
+import {
+  assertOwnedSheetMusicFile,
+  deleteSheetMusicFileIfUnreferenced,
+} from "@/features/music/services/sheet-music-upload-service";
+import { sheetMusicUrl } from "@/features/music/utils/sheet-music-url";
 import { updateMusicSchema } from "@/features/music/schemas/music-schema";
 import {
   createConcertSchema,
@@ -289,7 +294,8 @@ function setlistRowToMusic(r: SetlistMusicRow, customerId: string): Music {
     genres,
     note: r.note,
     spotifyLink: r.spotifyLink,
-    sheetMusicFile: r.sheetMusicFile,
+    sheetMusicFile: sheetMusicUrl(r.sheetMusicFileId),
+    sheetMusicFileId: r.sheetMusicFileId,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
   };
@@ -495,7 +501,7 @@ export async function duplicateConcert(
         genre: row.genre,
         genres: row.genres,
         spotifyLink: row.spotifyLink,
-        sheetMusicFile: row.sheetMusicFile,
+        sheetMusicFileId: row.sheetMusicFileId,
       }))
     );
   }
@@ -600,7 +606,7 @@ export async function addMusicsToSetlist(
         genre: music.genre,
         genres: music.genres,
         spotifyLink: music.spotifyLink,
-        sheetMusicFile: music.sheetMusicFile,
+        sheetMusicFileId: music.sheetMusicFileId,
       };
     })
   );
@@ -723,14 +729,32 @@ export async function updateSetlistMusic(
 
   const validated = updateMusicSchema.parse({ ...input, id: setlistItemId });
 
+  const [current] = await db
+    .select({ sheetMusicFileId: setlistMusic.sheetMusicFileId })
+    .from(setlistMusic)
+    .where(and(eq(setlistMusic.id, setlistItemId), eq(setlistMusic.concertId, concertId)))
+    .limit(1);
+
+  if (!current) {
+    throw new ConcertServiceError("Música não encontrada no setlist deste show.", "NOT_FOUND");
+  }
+
+  const replacesFile =
+    validated.sheetMusicFileId !== undefined &&
+    validated.sheetMusicFileId !== current.sheetMusicFileId;
+
+  if (replacesFile && validated.sheetMusicFileId) {
+    await assertOwnedSheetMusicFile(validated.sheetMusicFileId, customerId);
+  }
+
   const [updated] = await db
     .update(setlistMusic)
     .set(buildPersonalMusicUpdate(validated))
     .where(and(eq(setlistMusic.id, setlistItemId), eq(setlistMusic.concertId, concertId)))
     .returning();
 
-  if (!updated) {
-    throw new ConcertServiceError("Música não encontrada no setlist deste show.", "NOT_FOUND");
+  if (replacesFile && current.sheetMusicFileId) {
+    await deleteSheetMusicFileIfUnreferenced(current.sheetMusicFileId);
   }
 
   return setlistRowToMusic(updated, customerId);

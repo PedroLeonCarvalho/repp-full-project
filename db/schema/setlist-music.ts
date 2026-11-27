@@ -2,6 +2,7 @@ import { boolean, integer, pgTable, text, timestamp, uuid, index } from "drizzle
 import { musicalKeyEnum, musicGenreEnum } from "./enums";
 import { concerts } from "./concerts";
 import { customerMusics } from "./customer-musics";
+import { sheetMusicFiles } from "./sheet-music-files";
 
 /**
  * A song as it exists inside one concert's setlist.
@@ -35,7 +36,11 @@ export const setlistMusic = pgTable(
     genre: musicGenreEnum("genre"),
     genres: text("genres").array(),
     spotifyLink: text("spotify_link"),
+    // Legacy path column (unused since the DB storage migration; drop in a later migration)
     sheetMusicFile: text("sheet_music_file"),
+    sheetMusicFileId: uuid("sheet_music_file_id").references(() => sheetMusicFiles.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()

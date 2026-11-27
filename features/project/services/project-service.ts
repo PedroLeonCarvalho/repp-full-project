@@ -11,6 +11,7 @@ import type {
   UpdateProjectInput,
 } from "../types";
 import type { Music, MusicGenre } from "@/features/music/types";
+import { sheetMusicUrl } from "@/features/music/utils/sheet-music-url";
 import {
   createProjectSchema,
   updateProjectSchema,
@@ -328,7 +329,8 @@ export async function listProjectMusics(
     genres: (r.genres as MusicGenre[]) ?? (r.genre ? [r.genre as MusicGenre] : null),
     note: r.note,
     spotifyLink: r.spotifyLink,
-    sheetMusicFile: r.sheetMusicFile,
+    sheetMusicFile: sheetMusicUrl(r.sheetMusicFileId),
+    sheetMusicFileId: r.sheetMusicFileId,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
   }));

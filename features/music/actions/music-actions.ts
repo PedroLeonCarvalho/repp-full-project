@@ -13,7 +13,6 @@ import {
 import { lyricsService } from "../services/lyrics-service";
 import {
   uploadSheetMusicFile,
-  deleteSheetMusicFile,
   SheetMusicUploadError,
 } from "../services/sheet-music-upload-service";
 import type {
@@ -139,7 +138,7 @@ export async function searchLyricsAction(
 
 export async function uploadSheetMusicAction(
   formData: FormData
-): Promise<ActionResult<{ url: string; fileName: string; size: number }>> {
+): Promise<ActionResult<{ fileId: string; url: string; fileName: string; size: number }>> {
   try {
     const customerId = await requireAuthCustomerId();
     const file = formData.get("file");
@@ -158,20 +157,5 @@ export async function uploadSheetMusicAction(
       return { success: false, error: err.message };
     }
     return { success: false, error: "Erro inesperado ao fazer upload do arquivo." };
-  }
-}
-
-export async function deleteSheetMusicAction(
-  fileUrl: string
-): Promise<ActionResult<{ deleted: boolean }>> {
-  try {
-    const customerId = await requireAuthCustomerId();
-    const deleted = await deleteSheetMusicFile(fileUrl, customerId);
-    return { success: true, data: { deleted } };
-  } catch (err) {
-    if (err instanceof Error) {
-      return { success: false, error: err.message };
-    }
-    return { success: false, error: "Erro inesperado ao remover o arquivo." };
   }
 }

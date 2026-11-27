@@ -9,6 +9,11 @@ import type {
   UpdateMusicInput,
 } from "../types";
 import {
+  assertOwnedSheetMusicFile,
+  deleteSheetMusicFileIfUnreferenced,
+} from "./sheet-music-upload-service";
+import { sheetMusicUrl } from "../utils/sheet-music-url";
+import {
   createMusicSchema,
   updateMusicSchema,
   type UpdateMusicSchemaInput,
@@ -52,7 +57,8 @@ function toMusic(row: typeof customerMusics.$inferSelect): Music {
     genres: genresList,
     note: row.note,
     spotifyLink: row.spotifyLink,
-    sheetMusicFile: row.sheetMusicFile,
+    sheetMusicFile: sheetMusicUrl(row.sheetMusicFileId),
+    sheetMusicFileId: row.sheetMusicFileId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -95,6 +101,10 @@ export async function createMusic(
 
   const primaryGenre = genresToSave[0] || validated.genre || null;
 
+  if (validated.sheetMusicFileId) {
+    await assertOwnedSheetMusicFile(validated.sheetMusicFileId, customerId);
+  }
+
   try {
     const [created] = await db
       .insert(customerMusics)
@@ -111,7 +121,7 @@ export async function createMusic(
         genres: genresToSave.length > 0 ? genresToSave : null,
         note: validated.note || null,
         spotifyLink: validated.spotifyLink || null,
-        sheetMusicFile: validated.sheetMusicFile || null,
+        sheetMusicFileId: validated.sheetMusicFileId || null,
       })
       .returning();
 
@@ -156,7 +166,7 @@ export function buildPersonalMusicUpdate(validated: UpdateMusicSchemaInput) {
     ...genresUpdate,
     ...(validated.note !== undefined ? { note: validated.note } : {}),
     ...(validated.spotifyLink !== undefined ? { spotifyLink: validated.spotifyLink } : {}),
-    ...(validated.sheetMusicFile !== undefined ? { sheetMusicFile: validated.sheetMusicFile } : {}),
+    ...(validated.sheetMusicFileId !== undefined ? { sheetMusicFileId: validated.sheetMusicFileId } : {}),
   };
 }
 
@@ -169,7 +179,7 @@ export async function updateMusic(
 
   // Verify ownership
   const [current] = await db
-    .select({ id: customerMusics.id })
+    .select({ id: customerMusics.id, sheetMusicFileId: customerMusics.sheetMusicFileId })
     .from(customerMusics)
     .where(and(eq(customerMusics.id, id), eq(customerMusics.customerId, customerId)))
     .limit(1);
@@ -181,12 +191,25 @@ export async function updateMusic(
     );
   }
 
+  const replacesFile =
+    validated.sheetMusicFileId !== undefined &&
+    validated.sheetMusicFileId !== current.sheetMusicFileId;
+
+  if (replacesFile && validated.sheetMusicFileId) {
+    await assertOwnedSheetMusicFile(validated.sheetMusicFileId, customerId);
+  }
+
   // Update only personal fields (title/artist are immutable)
   const [updated] = await db
     .update(customerMusics)
     .set(buildPersonalMusicUpdate(validated))
     .where(and(eq(customerMusics.id, id), eq(customerMusics.customerId, customerId)))
     .returning();
+
+  // Replaced PDF: remove the old file unless a setlist copy still uses it
+  if (replacesFile && current.sheetMusicFileId) {
+    await deleteSheetMusicFileIfUnreferenced(current.sheetMusicFileId);
+  }
 
   return toMusic(updated);
 }
@@ -198,13 +221,18 @@ export async function deleteMusic(
   const result = await db
     .delete(customerMusics)
     .where(and(eq(customerMusics.id, id), eq(customerMusics.customerId, customerId)))
-    .returning({ id: customerMusics.id });
+    .returning({ id: customerMusics.id, sheetMusicFileId: customerMusics.sheetMusicFileId });
 
   if (result.length === 0) {
     throw new MusicServiceError(
       "Música não encontrada para exclusão.",
       "NOT_FOUND"
     );
+  }
+
+  // Setlist copies keep their own reference, so the file survives if a concert uses it
+  if (result[0].sheetMusicFileId) {
+    await deleteSheetMusicFileIfUnreferenced(result[0].sheetMusicFileId);
   }
 
   return { success: true };

@@ -18,7 +18,8 @@ export interface Music {
   genres?: MusicGenre[] | null;
   note: string | null;
   spotifyLink: string | null;
-  sheetMusicFile: string | null;
+  sheetMusicFile: string | null;     // public URL derived from sheetMusicFileId
+  sheetMusicFileId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -36,7 +37,7 @@ export interface CreateMusicInput {
   genres?: MusicGenre[] | null;
   note?: string | null;
   spotifyLink?: string | null;
-  sheetMusicFile?: string | null;
+  sheetMusicFileId?: string | null;
 }
 
 // Update input: title and artist are immutable after creation
@@ -51,7 +52,7 @@ export interface UpdateMusicInput {
   genres?: MusicGenre[] | null;
   note?: string | null;
   spotifyLink?: string | null;
-  sheetMusicFile?: string | null;
+  sheetMusicFileId?: string | null;
 }
 
 export interface MusicFilter {

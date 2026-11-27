@@ -8,4 +8,5 @@ export * from "./accompanying-musicians";
 export * from "./concert-musicians";
 export * from "./concerts";
 export * from "./setlist-music";
+export * from "./sheet-music-files";
 export * from "./contracts";

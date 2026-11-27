@@ -2,6 +2,7 @@ import { boolean, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-or
 import { sql } from "drizzle-orm";
 import { musicalKeyEnum, musicGenreEnum } from "./enums";
 import { customers } from "./customers";
+import { sheetMusicFiles } from "./sheet-music-files";
 
 export const customerMusics = pgTable(
   "customer_musics",
@@ -22,7 +23,11 @@ export const customerMusics = pgTable(
     genres: text("genres").array(),
     note: text("note"),
     spotifyLink: text("spotify_link"),
+    // Legacy path column (unused since the DB storage migration; drop in a later migration)
     sheetMusicFile: text("sheet_music_file"),
+    sheetMusicFileId: uuid("sheet_music_file_id").references(() => sheetMusicFiles.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()

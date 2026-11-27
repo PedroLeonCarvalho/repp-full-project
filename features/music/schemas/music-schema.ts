@@ -30,7 +30,7 @@ export const createMusicSchema = z.object({
     .optional()
     .nullable()
     .or(z.literal("")),
-  sheetMusicFile: z.string().trim().optional().nullable(),
+  sheetMusicFileId: z.string().uuid("Arquivo de partitura inválido").optional().nullable(),
 });
 
 // Update: title and artist are excluded (immutable after creation)
@@ -51,7 +51,7 @@ export const updateMusicSchema = z.object({
     .optional()
     .nullable()
     .or(z.literal("")),
-  sheetMusicFile: z.string().trim().optional().nullable(),
+  sheetMusicFileId: z.string().uuid("Arquivo de partitura inválido").optional().nullable(),
 });
 
 export const musicFilterSchema = z.object({
